@@ -162,21 +162,23 @@ export function BookingDashboard({ dailyFixed, byWeekday, weeks, bookings }: Pro
   return (
     <>
       <div className="overflow-hidden rounded-3xl border border-sand-200 bg-white shadow-warm">
-      {/* Wochenwahl */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-sand-200 bg-sand-50 px-5 py-4">
-        <span className="mr-2 text-sm font-bold text-ink-soft">Woche:</span>
-        {weeks.map((w, i) => (
-          <button
-            key={w.offset}
-            onClick={() => changeWeek(i)}
-            className={`rounded-full px-4 py-1.5 text-sm font-bold transition ${
-              i === weekIdx ? "bg-brand-500 text-white shadow-warm" : "bg-white text-ink hover:bg-sand-100"
-            }`}
-          >
-            {w.label}
-          </button>
-        ))}
-      </div>
+      {/* Wochenwahl – nur anzeigen, wenn es mehr als eine Woche gibt */}
+      {weeks.length > 1 && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-sand-200 bg-sand-50 px-5 py-4">
+          <span className="mr-2 text-sm font-bold text-ink-soft">Woche:</span>
+          {weeks.map((w, i) => (
+            <button
+              key={w.offset}
+              onClick={() => changeWeek(i)}
+              className={`rounded-full px-4 py-1.5 text-sm font-bold transition ${
+                i === weekIdx ? "bg-brand-500 text-white shadow-warm" : "bg-white text-ink hover:bg-sand-100"
+              }`}
+            >
+              {w.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Tagesauswahl (Wochentag + Datum) */}
       <div className="flex gap-2 overflow-x-auto border-b border-sand-200 px-4 py-4">

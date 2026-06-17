@@ -4,6 +4,8 @@ import {
   type LibDish,
   type SlotItem,
 } from "@/components/admin/grenzebach-manager";
+import { GrenzebachPlanManager } from "@/components/admin/grenzebach-plan-manager";
+import { getGrenzebachPlanMeta } from "@/lib/weekly-plan";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Grenzebach-Gerichte – Verwaltung" };
@@ -18,6 +20,7 @@ const SLOTS: { key: string; label: string }[] = [
 ];
 
 export default async function AdminGrenzebachPage() {
+  const planMeta = await getGrenzebachPlanMeta();
   const [dishes, imaged, assignments] = await Promise.all([
     prisma.dish.findMany({
       orderBy: { title: "asc" },
@@ -73,6 +76,15 @@ export default async function AdminGrenzebachPage() {
           ohne es mehrfach anzulegen.
         </p>
       </header>
+
+      <div className="mb-8">
+        <GrenzebachPlanManager
+          hasFile={planMeta?.hasFile ?? false}
+          title={planMeta?.title ?? null}
+          version={planMeta?.version ?? "0"}
+        />
+      </div>
+
       <GrenzebachManager library={library} slots={SLOTS} slotItems={slotItems} />
     </div>
   );

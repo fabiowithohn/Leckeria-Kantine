@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { weekdays, isoFromDate, dbDateFromISO, type WeekdayCode } from "@/lib/time";
 import { Container } from "@/components/ui";
 import { BookingDashboard, type DishDTO } from "@/components/booking-dashboard";
+import { getGrenzebachPlanMeta } from "@/lib/weekly-plan";
 import { logoutEmployee } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,8 @@ function serialize(d: DishLike, withImage: Set<string>): DishDTO {
 export default async function GrenzebachPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/grenzebach/login");
+
+  const planMeta = await getGrenzebachPlanMeta();
 
   // Aktive Zuordnungen inkl. Bibliotheks-Gericht (ohne Bilddaten) laden.
   const [assignments, imaged] = await Promise.all([
@@ -69,7 +72,6 @@ export default async function GrenzebachPage() {
 
   const weeks = [
     { offset: 0 as const, label: "Diese Woche", days: weekdays(0) },
-    { offset: 1 as const, label: "Nächste Woche", days: weekdays(1) },
   ];
   const allDates = weeks.flatMap((w) => w.days.map((d) => d.iso));
 
@@ -97,8 +99,19 @@ export default async function GrenzebachPage() {
             </h1>
             <p className="mt-1 text-ink-soft">
               Bestellschluss ist täglich um <strong>09:30 Uhr</strong>. Du kannst
-              bis zu eine Woche im Voraus buchen.
+              für die aktuelle Woche bestellen.
             </p>
+            {planMeta?.hasFile && (
+              <a
+                href={`/api/grenzebach-plan?v=${encodeURIComponent(planMeta.version)}`}
+                className="mt-4 inline-flex items-center gap-2 rounded-full bg-brand-500 px-5 py-2.5 text-sm font-extrabold text-white shadow-warm transition hover:bg-brand-600"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
+                </svg>
+                Wochenplan als PDF herunterladen
+              </a>
+            )}
           </div>
           <form action={logoutEmployee}>
             <button
