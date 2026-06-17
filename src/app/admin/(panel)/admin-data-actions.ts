@@ -353,37 +353,27 @@ export async function updateWeeklyPlan(
   return { ok: true };
 }
 
-// ============ Grenzebach – Wochenplan (PDF) ============
+// ============ Grenzebach – Wochenplan (Bild) ============
 export async function updateGrenzebachPlan(
   _prev: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
   await ensureAdmin();
   const title = String(formData.get("title") ?? "").trim() || null;
-
-  const entry = formData.get("file");
-  let file: { data: Uint8Array<ArrayBuffer>; mime: string } | null = null;
-  if (entry && typeof entry !== "string" && typeof entry.arrayBuffer === "function" && entry.size > 0) {
-    const isPdf = entry.type === "application/pdf" || /\.pdf$/i.test(entry.name ?? "");
-    if (!isPdf) return { error: "Bitte eine PDF-Datei hochladen." };
-    const buf = Buffer.from(await entry.arrayBuffer());
-    const u8 = new Uint8Array(buf.length);
-    u8.set(buf);
-    file = { data: u8, mime: "application/pdf" };
-  }
+  const image = await processDishImage(formData.get("image"));
 
   const existing = await prisma.weeklyPlan.findUnique({ where: { id: GRENZEBACH_PLAN_ID } });
-  if (!existing && !file) {
-    return { error: "Bitte eine PDF-Datei des Wochenplans hochladen." };
+  if (!existing && !image) {
+    return { error: "Bitte ein Bild des Wochenplans hochladen." };
   }
 
   await prisma.weeklyPlan.upsert({
     where: { id: GRENZEBACH_PLAN_ID },
-    update: { title, ...(file ? { imageData: file.data, imageMime: file.mime } : {}) },
+    update: { title, ...(image ? { imageData: image.data, imageMime: image.mime } : {}) },
     create: {
       id: GRENZEBACH_PLAN_ID,
       title,
-      ...(file ? { imageData: file.data, imageMime: file.mime } : {}),
+      ...(image ? { imageData: image.data, imageMime: image.mime } : {}),
     },
   });
 

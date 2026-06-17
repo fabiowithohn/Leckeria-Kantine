@@ -104,12 +104,13 @@ export default async function GrenzebachPage() {
             {planMeta?.hasFile && (
               <a
                 href={`/api/grenzebach-plan?v=${encodeURIComponent(planMeta.version)}`}
+                download="Wochenplan-Grenzebach.jpg"
                 className="mt-4 inline-flex items-center gap-2 rounded-full bg-brand-500 px-5 py-2.5 text-sm font-extrabold text-white shadow-warm transition hover:bg-brand-600"
               >
                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
                 </svg>
-                Wochenplan als PDF herunterladen
+                Wochenplan herunterladen
               </a>
             )}
           </div>

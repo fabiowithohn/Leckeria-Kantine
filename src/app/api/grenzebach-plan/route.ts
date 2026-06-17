@@ -3,7 +3,7 @@ import { GRENZEBACH_PLAN_ID } from "@/lib/weekly-plan";
 
 export const dynamic = "force-dynamic";
 
-// Liefert den aktuellen Grenzebach-Wochenplan als PDF-Download.
+// Liefert das aktuelle Wochenplan-Bild der Kantine Grenzebach.
 export async function GET() {
   const plan = await prisma.weeklyPlan.findUnique({
     where: { id: GRENZEBACH_PLAN_ID },
@@ -17,8 +17,7 @@ export async function GET() {
   const body = new Uint8Array(plan.imageData);
   return new Response(body, {
     headers: {
-      "Content-Type": plan.imageMime ?? "application/pdf",
-      "Content-Disposition": 'attachment; filename="Wochenplan-Grenzebach.pdf"',
+      "Content-Type": plan.imageMime ?? "image/jpeg",
       "Cache-Control": "public, max-age=31536000, immutable",
     },
   });
