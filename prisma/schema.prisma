@@ -1,0 +1,141 @@
+// Leckeria – Datenbankschema (PostgreSQL / Neon)
+// Lokale Entwicklung nutzt embedded-postgres mit identischem Schema.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Platzierung eines Bibliotheks-Gerichts: Wochentag oder "täglich verfügbar".
+enum MenuSlot {
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  DAILY_FIXED // "Tägliche Speisen" – an jedem Werktag verfügbar
+}
+
+/// Mitarbeiter der Kantine Grenzebach (eigener Account-Bereich)
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String // Anzeigename = "Vorname Nachname" (für Login/Begrüßung)
+  firstName     String    @default("")
+  lastName      String    @default("")
+  passwordHash  String
+  emailVerified DateTime? // gesetzt nach Klick auf Bestätigungslink
+  approved      Boolean   @default(false) // muss vom Admin freigeschaltet werden
+  createdAt     DateTime  @default(now())
+  bookings      Booking[]
+}
+
+/// Token für E-Mail-Bestätigung der Registrierung
+model VerificationToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+/// Token zum Zurücksetzen des Passworts (Selbstbedienung oder vom Admin ausgelöst)
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+/// Bibliothek: ein Gericht wird EINMAL angelegt (inkl. Bild) und kann
+/// mehreren Wochentagen / "Tägliche Speisen" zugeordnet werden.
+model Dish {
+  id          String           @id @default(cuid())
+  title       String
+  description String?
+  allergens   String[]         @default([]) // Allergen-Nummern (1–14) lt. allergenliste.md / LMIV
+  additives   String[]         @default([]) // Zusatzstoff-Kürzel (a–m) lt. kennzeichnungspflichtige_zusatzstoffe.md / ZZulV
+  imageData   Bytes? // Vorschaubild (komprimiert, in DB gespeichert → deploy-sicher)
+  imageMime   String? // MIME-Typ des Bildes (z.B. image/jpeg)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @default(now()) @updatedAt
+  assignments MenuAssignment[]
+  bookings    Booking[]
+}
+
+/// Zuordnung eines Bibliotheks-Gerichts zu einem Slot (Wochentag / täglich).
+model MenuAssignment {
+  id        String   @id @default(cuid())
+  dishId    String
+  dish      Dish     @relation(fields: [dishId], references: [id], onDelete: Cascade)
+  slot      MenuSlot
+  active    Boolean  @default(true) // nur aktive Zuordnungen sind buchbar/sichtbar
+  sortOrder Int      @default(0) // Reihenfolge (Drag & Drop) innerhalb des Slots
+  createdAt DateTime @default(now())
+
+  @@unique([dishId, slot]) // ein Gericht pro Slot höchstens einmal
+  @@index([slot, active])
+}
+
+/// Bestellung: genau eine pro Mitarbeiter und Kalendertag
+model Booking {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dishId            String
+  dish              Dish     @relation(fields: [dishId], references: [id], onDelete: Restrict)
+  dishTitleSnapshot String // Titel zum Zeitpunkt der Bestellung (auswertungssicher)
+  date              DateTime @db.Date // Tag der Mahlzeit (Europe/Berlin)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([userId, date]) // erzwingt 1 Menü pro Tag
+  @@index([date])
+}
+
+/// Öffentliche Speisekarte ("Speisepläne" im Admin) – Drag & Drop pflegbar
+model MenuItem {
+  id          String   @id @default(cuid())
+  section     String // Kategorie/Abschnitt (z.B. "Vorspeisen", "Hauptgerichte")
+  title       String
+  description String?
+  priceCents  Int?
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([section, active])
+}
+
+/// Wöchentlicher Speiseplan der öffentlichen Kantine Asteel Flash (ein Bild).
+/// Einzeiliges "Singleton" (feste id), im Backend austauschbar.
+model WeeklyPlan {
+  id        String   @id // fester Wert, z.B. "asteel-flash"
+  title     String? // optionale Überschrift / Wochenangabe
+  imageData Bytes? // Plan-Bild (komprimiert, in DB gespeichert)
+  imageMime String?
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+/// Aktuelles / News
+model NewsPost {
+  id          String   @id @default(cuid())
+  title       String
+  body        String
+  imageData   Bytes? // optionales Beitragsbild (komprimiert, in DB gespeichert)
+  imageMime   String?
+  published   Boolean  @default(true)
+  publishedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  @@index([published, publishedAt])
+}

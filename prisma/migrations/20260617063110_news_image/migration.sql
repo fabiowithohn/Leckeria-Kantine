@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "NewsPost" ADD COLUMN     "imageData" BYTEA,
+ADD COLUMN     "imageMime" TEXT,
+ADD COLUMN     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;

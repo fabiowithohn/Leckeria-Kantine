@@ -1,0 +1,169 @@
+@import "tailwindcss";
+
+/*
+  Leckeria – Design-System
+  Leitfarbe: Leckeria-Orange #F97316 · Amber #FBBF24 · Frisch-Grün #65A30D
+  Tiefes Terra #C2410C · Küchen-Schwarz #1C1917
+  Schrift: Nunito (Headlines, bis 900) / Nunito Sans (Fließtext)
+  Formsprache: rund & weich.
+*/
+@theme {
+  --font-sans: var(--font-nunito-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+
+  /* Leitfarbe Orange → Terra */
+  --color-brand-50: #fff7ed;
+  --color-brand-100: #ffedd5;
+  --color-brand-200: #fed7aa;
+  --color-brand-300: #fdba74;
+  --color-brand-400: #fb923c;
+  --color-brand-500: #f97316; /* Leckeria-Orange */
+  --color-brand-600: #ea580c;
+  --color-brand-700: #c2410c; /* Tiefes Terra */
+  --color-brand-800: #9a3412;
+  --color-brand-900: #7c2d12;
+
+  /* Sonnen-Amber */
+  --color-gold-300: #fcd34d;
+  --color-gold-400: #fbbf24;
+  --color-gold-500: #f59e0b;
+
+  /* Frisch-Grün */
+  --color-herb-400: #84cc16;
+  --color-herb-500: #65a30d;
+  --color-herb-600: #4d7c0f;
+
+  /* Warmes Creme / Sand */
+  --color-sand-50: #fffaf4;
+  --color-sand-100: #fdf1e3;
+  --color-sand-200: #f8e4cd;
+  --color-sand-300: #f0d2ad;
+
+  /* Küchen-Schwarz (warmer Unterton) */
+  --color-ink: #1c1917;
+  --color-ink-soft: #6f655d;
+
+  --color-background: var(--color-sand-50);
+  --color-foreground: var(--color-ink);
+
+  /* Rundere Radien für weiche Formsprache */
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+
+  /* Warme, weiche Schatten */
+  --shadow-warm: 0 18px 40px -16px rgba(194, 65, 12, 0.28);
+  --shadow-warm-lg: 0 30px 60px -20px rgba(194, 65, 12, 0.35);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+/* Warme, weiche Schatten als Utilities */
+.shadow-warm { box-shadow: var(--shadow-warm); }
+.shadow-warm-lg { box-shadow: var(--shadow-warm-lg); }
+
+/* Dezentes Punktmuster (amber-getönt) */
+.bg-dots {
+  background-image: radial-gradient(rgba(249, 115, 22, 0.12) 1.4px, transparent 1.4px);
+  background-size: 20px 20px;
+}
+
+/* Sanfte Körnung/Textur für Tiefe */
+.grain {
+  position: relative;
+}
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+/* Organische Blob-Form */
+.blob {
+  border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%;
+}
+.blob-2 {
+  border-radius: 63% 37% 41% 59% / 58% 49% 51% 42%;
+}
+
+/* Gestaffelte Lade-Animation */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-rise {
+  animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise { animation: none; }
+  html { scroll-behavior: auto; }
+}
+
+/* Rechtstexte (AGB, Impressum, Datenschutz, Cookies) */
+.legal {
+  color: var(--color-ink);
+  line-height: 1.7;
+}
+.legal h2 {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 1.5rem;
+  color: var(--color-brand-700);
+  margin-top: 2.25rem;
+  margin-bottom: 0.75rem;
+}
+.legal h3 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.125rem;
+  color: var(--color-ink);
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+.legal p { margin-bottom: 1rem; color: var(--color-ink-soft); }
+.legal strong { color: var(--color-ink); font-weight: 700; }
+.legal a { color: var(--color-brand-600); text-decoration: underline; }
+.legal a:hover { color: var(--color-brand-700); }
+.legal ul { list-style: disc; padding-left: 1.25rem; margin-bottom: 1rem; color: var(--color-ink-soft); }
+.legal li { margin-bottom: 0.35rem; }
+.legal hr { border: 0; border-top: 1px solid var(--color-sand-200); margin: 2rem 0; }
+.legal table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0 1.5rem;
+  font-size: 0.95rem;
+  background: #fff;
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: 0 1px 0 var(--color-sand-200);
+}
+.legal th, .legal td {
+  text-align: left;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid var(--color-sand-200);
+  vertical-align: top;
+}
+.legal th { background: var(--color-brand-50); color: var(--color-brand-700); font-weight: 800; }
+.legal td { color: var(--color-ink-soft); }
+.legal td strong { color: var(--color-ink); }
