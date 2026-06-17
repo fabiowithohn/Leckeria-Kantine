@@ -32,6 +32,19 @@ export async function updateUserName(
   return { ok: true };
 }
 
+/** Löscht ein Mitarbeiter-Konto endgültig (inkl. zugehöriger Bestellungen via Cascade). */
+export async function deleteUser(userId: string): Promise<UserActionResult> {
+  await requireAdmin();
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+  if (!user) return { error: "Mitarbeiter nicht gefunden." };
+  // Offene Reset-/Bestätigungs-Tokens dieser E-Mail mit aufräumen
+  await prisma.passwordResetToken.deleteMany({ where: { email: user.email } });
+  await prisma.verificationToken.deleteMany({ where: { email: user.email } });
+  await prisma.user.delete({ where: { id: userId } });
+  revalidatePath("/admin/benutzer");
+  return { ok: true };
+}
+
 /** Schaltet ein Konto frei oder entzieht die Freischaltung (sperrt den Login). */
 export async function setUserApproval(
   userId: string,

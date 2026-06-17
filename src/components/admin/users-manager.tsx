@@ -6,6 +6,7 @@ import {
   updateUserName,
   adminResetUserPassword,
   setUserApproval,
+  deleteUser,
 } from "@/app/admin/(panel)/admin-users-actions";
 
 export type UserRow = {
@@ -180,6 +181,16 @@ export function UsersManager({ users }: { users: UserRow[] }) {
                       className="rounded-full border border-brand-200 px-3 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-50"
                     >
                       Passwort zurücksetzen
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`Konto von „${u.firstName} ${u.lastName}“ (${u.email}) endgültig löschen? Das kann nicht rückgängig gemacht werden.`)) {
+                          run(() => deleteUser(u.id));
+                        }
+                      }}
+                      className="rounded-full bg-brand-600 px-3 py-1 text-xs font-bold text-white hover:bg-brand-700"
+                    >
+                      Löschen
                     </button>
                   </div>
                 </div>
