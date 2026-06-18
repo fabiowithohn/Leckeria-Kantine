@@ -45,10 +45,27 @@ export async function GET(request: Request) {
   }
   lines.push([csvCell("Gesamt"), String(bookings.length)].join(";"));
   lines.push("");
-  lines.push("Einzelbestellungen");
-  lines.push(["Name", "E-Mail", "Menü"].map(csvCell).join(";"));
+
+  // Einzelbestellungen – nach Gericht gruppiert (alle Besteller je Menü zusammen)
+  const groups = new Map<string, { name: string; email: string }[]>();
   for (const b of bookings) {
-    lines.push([csvCell(b.user.name), csvCell(b.user.email), csvCell(b.dishTitleSnapshot)].join(";"));
+    const arr = groups.get(b.dishTitleSnapshot) ?? [];
+    arr.push({ name: b.user.name, email: b.user.email });
+    groups.set(b.dishTitleSnapshot, arr);
+  }
+
+  lines.push("Bestellungen nach Gericht");
+  const sortedTitles = [...groups.keys()].sort((a, b) => a.localeCompare(b, "de"));
+  for (const title of sortedTitles) {
+    const people = groups
+      .get(title)!
+      .sort((a, b) => a.name.localeCompare(b.name, "de"));
+    lines.push("");
+    lines.push([csvCell(title), csvCell(`${people.length} Bestellung(en)`)].join(";"));
+    lines.push(["Name", "E-Mail"].map(csvCell).join(";"));
+    for (const p of people) {
+      lines.push([csvCell(p.name), csvCell(p.email)].join(";"));
+    }
   }
 
   // UTF-8 BOM für korrekte Darstellung in Excel
