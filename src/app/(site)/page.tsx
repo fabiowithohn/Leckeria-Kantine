@@ -7,18 +7,11 @@ export const dynamic = "force-dynamic";
 
 const SERVICES = [
   {
-    title: "Catering",
-    text: "Vom Business-Lunch bis zum großen Event – frisch zubereitet und pünktlich geliefert.",
-    href: "/kontakt",
+    title: "Catering & Partyservice",
+    text: "Vom Business-Lunch über Buffets und Fingerfood bis zum großen Event – frisch zubereitet, individuell und pünktlich geliefert.",
+    href: "/partyservice",
     icon: "M3 11h18M5 11V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4M4 11l1 9h14l1-9",
     color: "bg-brand-50 text-brand-600",
-  },
-  {
-    title: "Partyservice",
-    text: "Buffets, Fingerfood und Menüs für Feiern jeder Größe – individuell für dich.",
-    href: "/partyservice",
-    icon: "M12 3v2M5 8h14l-1.5 11.5A2 2 0 0 1 15.5 21h-7a2 2 0 0 1-2-1.5L5 8z",
-    color: "bg-gold-400/20 text-gold-500",
   },
   {
     title: "Kantinenservice",
@@ -164,7 +157,7 @@ export default async function HomePage() {
             title="Was wir für dich kochen"
             intro="Drei Bereiche, ein Anspruch: beste Zutaten, ehrliches Handwerk und pünktliche Lieferung."
           />
-          <div className="mt-12 grid gap-6 md:grid-cols-3">
+          <div className="mx-auto mt-12 grid max-w-4xl gap-6 md:grid-cols-2">
             {SERVICES.map((s) => (
               <Link
                 key={s.title}
