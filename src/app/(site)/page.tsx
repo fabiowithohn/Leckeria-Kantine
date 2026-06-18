@@ -60,8 +60,10 @@ export default async function HomePage() {
               <span className="text-gold-400">Regional</span> serviert.
             </h1>
             <p className="animate-rise mt-6 max-w-xl text-lg text-white/90" style={{ animationDelay: "0.16s" }}>
-              Leckeria verwöhnt Unternehmen, Kantinen und private Feiern in ganz
-              Hessen mit ehrlicher, saisonaler Küche – täglich frisch zubereitet.
+              Wir bei Leckeria versorgen deine Feier mit leckerem Essen und
+              Fingerfood. Frisch, herzlich und persönlich. Neben unserem
+              Partyservice bieten wir auch Kantinenservice an und kümmern uns mit
+              viel Leidenschaft darum, dass sich jeder gut versorgt fühlt.
             </p>
             <div className="animate-rise mt-8 flex flex-wrap gap-3" style={{ animationDelay: "0.24s" }}>
               <ButtonLink href="/kontakt" variant="light">
