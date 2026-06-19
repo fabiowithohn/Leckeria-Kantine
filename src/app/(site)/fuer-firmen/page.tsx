@@ -43,12 +43,42 @@ const VORTEILE = [
 ];
 
 const ZIELGRUPPEN = [
-  ["Produktions- & Fertigungsbetriebe", "Schichtarbeiter brauchen frühe Versorgung, oft keine Kantine vorhanden."],
-  ["Logistikunternehmen", "Verteilt arbeitende Teams mit wenig Zeit für Außerverpflegung."],
-  ["Handwerksbetriebe & Werkstätten", "Zu klein für eine eigene Kantine, aber Bedarf ist da."],
-  ["Büro- & Dienstleistungsbetriebe", "Ideale Ergänzung zu bestehenden Pausenräumen."],
-  ["Pflege- & Sozialeinrichtungen", "24-Stunden-Betrieb mit Nachtschichten."],
-  ["KMU ab ca. 20 Mitarbeitern", "Erste professionelle Verpflegung ohne Kantinenaufbau."],
+  {
+    title: "Produktions- & Fertigungsbetriebe",
+    text: "Schichtarbeiter brauchen frühe Versorgung, oft keine Kantine vorhanden.",
+    color: "bg-brand-50 text-brand-600",
+    icon: "M2 21h20M5 21V11l5-3v3l5-3v13M19 21V7l-4-2M8.5 13h.01M8.5 17h.01M13 13h.01M13 17h.01",
+  },
+  {
+    title: "Logistikunternehmen",
+    text: "Verteilt arbeitende Teams mit wenig Zeit für Außerverpflegung.",
+    color: "bg-gold-400/20 text-gold-500",
+    icon: "M2 7h11v9H2zM13 10h4l4 3.5V16h-8M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM17 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4z",
+  },
+  {
+    title: "Handwerksbetriebe & Werkstätten",
+    text: "Zu klein für eine eigene Kantine, aber Bedarf ist da.",
+    color: "bg-herb-500/15 text-herb-600",
+    icon: "M14.6 6.3a3.6 3.6 0 0 0-4.9 4.9L3 18l3 3 6.8-6.7a3.6 3.6 0 0 0 4.9-4.9l-2.5 2.5-2.4-2.4 2.5-2.5z",
+  },
+  {
+    title: "Büro- & Dienstleistungsbetriebe",
+    text: "Ideale Ergänzung zu bestehenden Pausenräumen.",
+    color: "bg-brand-50 text-brand-600",
+    icon: "M4 21V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v17M14 9h5a1 1 0 0 1 1 1v11M3 21h18M7.5 7h.01M10.5 7h.01M7.5 11h.01M10.5 11h.01M7.5 15h.01M10.5 15h.01M17 14h.01M17 17h.01",
+  },
+  {
+    title: "Pflege- & Sozialeinrichtungen",
+    text: "24-Stunden-Betrieb mit Nachtschichten.",
+    color: "bg-gold-400/20 text-gold-500",
+    icon: "M12 20s-6.5-4.2-6.5-9A3.5 3.5 0 0 1 12 8.3 3.5 3.5 0 0 1 18.5 11c0 4.8-6.5 9-6.5 9z",
+  },
+  {
+    title: "KMU ab ca. 20 Mitarbeitern",
+    text: "Erste professionelle Verpflegung ohne Kantinenaufbau.",
+    color: "bg-herb-500/15 text-herb-600",
+    icon: "M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20a6 6 0 0 1 12 0M17 11a2.6 2.6 0 0 0 0-5.2M21 20a5 5 0 0 0-4-4.9",
+  },
 ];
 
 const ARGUMENTE = [
@@ -163,10 +193,22 @@ export default function FuerFirmenPage() {
             intro="Vom Schichtbetrieb bis zum Büro – überall, wo eine eigene Kantine nicht in Frage kommt, ist der Automat die ideale Lösung."
           />
           <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {ZIELGRUPPEN.map(([typ, warum]) => (
-              <div key={typ} className="rounded-3xl border border-sand-200 bg-white p-6">
-                <h3 className="text-lg font-semibold text-ink">{typ}</h3>
-                <p className="mt-2 text-sm text-ink-soft">{warum}</p>
+            {ZIELGRUPPEN.map((z) => (
+              <div
+                key={z.title}
+                className="group relative overflow-hidden rounded-3xl border border-sand-200 bg-white p-6 transition duration-300 hover:-translate-y-1.5 hover:border-brand-200 hover:shadow-warm"
+              >
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-gradient-to-br from-brand-100/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                />
+                <span className={`relative grid h-14 w-14 place-items-center rounded-2xl ${z.color} transition-transform duration-300 group-hover:scale-110`}>
+                  <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d={z.icon} />
+                  </svg>
+                </span>
+                <h3 className="relative mt-5 text-lg font-extrabold text-ink">{z.title}</h3>
+                <p className="relative mt-2 text-sm leading-relaxed text-ink-soft">{z.text}</p>
               </div>
             ))}
           </div>
