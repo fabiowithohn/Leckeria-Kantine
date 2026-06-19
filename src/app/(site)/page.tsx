@@ -117,7 +117,7 @@ export default async function HomePage() {
             center
             eyebrow="Leckeria bewegt"
             title="Das ist Leckeria"
-            intro="Ein Blick hinter die Kulissen: frische Zutaten, ehrliches Handwerk und das Team hinter Leckeria."
+            intro="Ein Blick hinter die Kulissen: frische Zutaten, ehrliches Handwerk und ein Team voller Leidenschaft."
           />
           <div className="mx-auto mt-12 max-w-4xl">
             <div className="relative aspect-video overflow-hidden rounded-3xl border border-sand-200 bg-ink shadow-warm">
@@ -157,7 +157,7 @@ export default async function HomePage() {
             center
             eyebrow="Unsere Leistungen"
             title="Was wir für dich kochen"
-            intro="Drei Bereiche, ein Anspruch: beste Zutaten, ehrliches Handwerk und pünktliche Lieferung."
+            intro="Zwei Bereiche, ein Anspruch: beste Zutaten, ehrliches Handwerk und pünktliche Lieferung."
           />
           <div className="mx-auto mt-12 grid max-w-4xl gap-6 md:grid-cols-2">
             {SERVICES.map((s) => (
