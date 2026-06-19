@@ -384,7 +384,9 @@ function SlotTab({
           <select value={pick} onChange={(e) => setPick(e.target.value)} className={input}>
             <option value="">– Gericht wählen –</option>
             {available.map((d) => (
-              <option key={d.id} value={d.id}>{d.title}</option>
+              <option key={d.id} value={d.id}>
+                {d.description ? `${d.title} – ${d.description}` : d.title}
+              </option>
             ))}
           </select>
         </div>
