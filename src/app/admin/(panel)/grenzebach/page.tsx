@@ -48,6 +48,7 @@ export default async function AdminGrenzebachPage() {
       assignmentId: a.id,
       dishId: d.id,
       title: d.title,
+      description: d.description,
       hasImage: withImage.has(d.id),
       imageVersion: version(d),
       active: a.active,

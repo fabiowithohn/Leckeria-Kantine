@@ -31,6 +31,7 @@ export type SlotItem = {
   assignmentId: string;
   dishId: string;
   title: string;
+  description: string | null;
   hasImage: boolean;
   imageVersion: string;
   active: boolean;
@@ -414,9 +415,14 @@ function SlotTab({
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <Thumb dishId={item.dishId} hasImage={item.hasImage} version={item.imageVersion} />
-                  <p className={`font-bold ${item.active ? "text-ink" : "text-ink-soft line-through"}`}>
-                    {item.title}
-                  </p>
+                  <div className="min-w-0">
+                    <p className={`font-bold ${item.active ? "text-ink" : "text-ink-soft line-through"}`}>
+                      {item.title}
+                    </p>
+                    {item.description && (
+                      <p className="text-sm text-ink-soft">{item.description}</p>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
