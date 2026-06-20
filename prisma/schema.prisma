@@ -63,6 +63,7 @@ model Dish {
   description String?
   allergens   String[]         @default([]) // Allergen-Nummern (1–14) lt. allergenliste.md / LMIV
   additives   String[]         @default([]) // Zusatzstoff-Kürzel (a–m) lt. kennzeichnungspflichtige_zusatzstoffe.md / ZZulV
+  allowNote   Boolean          @default(false) // erlaubt ein Sonderwunsch-Freitextfeld bei der Bestellung
   imageData   Bytes? // Vorschaubild (komprimiert, in DB gespeichert → deploy-sicher)
   imageMime   String? // MIME-Typ des Bildes (z.B. image/jpeg)
   createdAt   DateTime         @default(now())
@@ -93,6 +94,7 @@ model Booking {
   dishId            String
   dish              Dish     @relation(fields: [dishId], references: [id], onDelete: Restrict)
   dishTitleSnapshot String // Titel zum Zeitpunkt der Bestellung (auswertungssicher)
+  note              String? // Sonderwunsch/Freitext (nur wenn beim Gericht erlaubt)
   date              DateTime @db.Date // Tag der Mahlzeit (Europe/Berlin)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

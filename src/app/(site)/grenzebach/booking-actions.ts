@@ -23,6 +23,7 @@ const ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
 export async function bookDish(
   dishId: string,
   dateISO: string,
+  note?: string,
 ): Promise<BookingResult> {
   const session = await auth();
   if (!session?.user?.id) return { error: "Bitte zuerst einloggen." };
@@ -49,15 +50,20 @@ export async function bookDish(
     return { error: "Dieses Gericht ist an diesem Tag nicht verfügbar." };
   }
 
+  // Sonderwunsch nur übernehmen, wenn das Gericht es erlaubt (sonst leeren)
+  const cleanNote =
+    dish.allowNote && typeof note === "string" ? note.trim().slice(0, 300) || null : null;
+
   // Genau 1 Bestellung pro Tag → upsert ersetzt eine bestehende Auswahl
   await prisma.booking.upsert({
     where: { userId_date: { userId: session.user.id, date: dbDateFromISO(dateISO) } },
-    update: { dishId: dish.id, dishTitleSnapshot: dish.title },
+    update: { dishId: dish.id, dishTitleSnapshot: dish.title, note: cleanNote },
     create: {
       userId: session.user.id,
       date: dbDateFromISO(dateISO),
       dishId: dish.id,
       dishTitleSnapshot: dish.title,
+      note: cleanNote,
     },
   });
 

@@ -24,7 +24,7 @@ export default async function AdminGrenzebachPage() {
   const [dishes, imaged, assignments] = await Promise.all([
     prisma.dish.findMany({
       orderBy: { title: "asc" },
-      select: { id: true, title: true, description: true, allergens: true, additives: true, updatedAt: true },
+      select: { id: true, title: true, description: true, allergens: true, additives: true, allowNote: true, updatedAt: true },
     }),
     prisma.dish.findMany({ where: { NOT: { imageData: null } }, select: { id: true } }),
     prisma.menuAssignment.findMany({
@@ -62,6 +62,7 @@ export default async function AdminGrenzebachPage() {
     description: d.description,
     allergens: d.allergens,
     additives: d.additives,
+    allowNote: d.allowNote,
     hasImage: withImage.has(d.id),
     imageVersion: version(d),
     slots: dishSlots[d.id] ?? [],

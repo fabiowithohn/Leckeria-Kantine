@@ -112,6 +112,7 @@ export default async function AdminBestellungenPage({
                   <th className="py-2">Name</th>
                   <th className="py-2">E-Mail</th>
                   <th className="py-2">Menü</th>
+                  <th className="py-2">Sonderwunsch</th>
                 </tr>
               </thead>
               <tbody>
@@ -120,6 +121,7 @@ export default async function AdminBestellungenPage({
                     <td className="py-2 text-ink">{b.user.name}</td>
                     <td className="py-2 text-ink-soft">{b.user.email}</td>
                     <td className="py-2 text-ink">{b.dishTitleSnapshot}</td>
+                    <td className="py-2 text-ink-soft">{b.note ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>

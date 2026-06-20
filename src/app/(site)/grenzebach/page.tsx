@@ -16,6 +16,7 @@ type DishLike = {
   description: string | null;
   allergens: string[];
   additives: string[];
+  allowNote: boolean;
   updatedAt: Date;
 };
 
@@ -26,6 +27,7 @@ function serialize(d: DishLike, withImage: Set<string>): DishDTO {
     description: d.description,
     allergens: d.allergens,
     additives: d.additives,
+    allowNote: d.allowNote,
     hasImage: withImage.has(d.id),
     imageVersion: d.updatedAt.getTime().toString(),
   };
@@ -45,7 +47,7 @@ export default async function GrenzebachPage() {
       select: {
         slot: true,
         dish: {
-          select: { id: true, title: true, description: true, allergens: true, additives: true, updatedAt: true },
+          select: { id: true, title: true, description: true, allergens: true, additives: true, allowNote: true, updatedAt: true },
         },
       },
     }),
@@ -81,9 +83,9 @@ export default async function GrenzebachPage() {
       date: { in: allDates.map(dbDateFromISO) },
     },
   });
-  const bookingMap: Record<string, { dishId: string; title: string }> = {};
+  const bookingMap: Record<string, { dishId: string; title: string; note: string | null }> = {};
   for (const b of bookings) {
-    bookingMap[isoFromDate(b.date)] = { dishId: b.dishId, title: b.dishTitleSnapshot };
+    bookingMap[isoFromDate(b.date)] = { dishId: b.dishId, title: b.dishTitleSnapshot, note: b.note };
   }
 
   return (

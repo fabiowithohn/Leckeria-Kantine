@@ -13,6 +13,7 @@ export type DishDTO = {
   description: string | null;
   allergens: string[];
   additives: string[];
+  allowNote: boolean;
   hasImage: boolean;
   imageVersion: string;
 };
@@ -54,7 +55,7 @@ type Props = {
   dailyFixed: DishDTO[];
   byWeekday: Record<WeekdayCode, DishDTO[]>;
   weeks: WeekDTO[];
-  bookings: Record<string, { dishId: string; title: string }>;
+  bookings: Record<string, { dishId: string; title: string; note: string | null }>;
 };
 
 function DishImage({ dish }: { dish: DishDTO }) {
@@ -80,6 +81,8 @@ export function BookingDashboard({ dailyFixed, byWeekday, weeks, bookings }: Pro
   const [weekIdx, setWeekIdx] = useState(0);
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  // Sonderwünsche pro Tag+Gericht (Freitext), keyed by `${iso}-${dishId}`
+  const [notes, setNotes] = useState<Record<string, string>>({});
 
   const week = weeks[weekIdx];
   const firstBookable = week.days.find((d) => d.bookable) ?? week.days[0];
@@ -109,42 +112,82 @@ export function BookingDashboard({ dailyFixed, byWeekday, weeks, bookings }: Pro
 
   function DishRow({ dish }: { dish: DishDTO }) {
     const isBooked = currentBooking?.dishId === dish.id;
+    const noteKey = `${day?.iso ?? ""}-${dish.id}`;
+    const savedNote = isBooked ? currentBooking?.note ?? "" : "";
+    const noteValue = notes[noteKey] ?? savedNote;
+    const noteChanged = noteValue.trim() !== savedNote.trim();
     return (
       <li
-        className={`flex items-center gap-4 rounded-2xl border p-3 sm:p-4 ${
+        className={`rounded-2xl border p-3 sm:p-4 ${
           isBooked ? "border-herb-500/50 bg-herb-500/5" : "border-sand-200 bg-white"
         }`}
       >
-        <DishImage dish={dish} />
-        <div className="min-w-0 flex-1">
-          <p className="font-bold text-ink">{dish.title}</p>
-          {dish.description && <p className="text-sm text-ink-soft">{dish.description}</p>}
-          <MarkBadges allergens={dish.allergens} additives={dish.additives} />
-        </div>
-        {isBooked ? (
-          <div className="flex shrink-0 items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-herb-500/15 px-4 py-2 text-sm font-bold text-herb-600">
-              ✓ Gebucht
-            </span>
+        <div className="flex items-center gap-4">
+          <DishImage dish={dish} />
+          <div className="min-w-0 flex-1">
+            <p className="font-bold text-ink">{dish.title}</p>
+            {dish.description && <p className="text-sm text-ink-soft">{dish.description}</p>}
+            <MarkBadges allergens={dish.allergens} additives={dish.additives} />
+          </div>
+          {isBooked ? (
+            <div className="flex shrink-0 items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-herb-500/15 px-4 py-2 text-sm font-bold text-herb-600">
+                ✓ Gebucht
+              </span>
+              <button
+                disabled={pending || !day?.bookable}
+                onClick={() => day && run(() => cancelBooking(day.iso), "Bestellung storniert.")}
+                className="rounded-full border-2 border-brand-500 px-4 py-2 text-sm font-bold text-brand-700 transition hover:bg-brand-50 disabled:opacity-50"
+              >
+                Stornieren
+              </button>
+            </div>
+          ) : (
             <button
               disabled={pending || !day?.bookable}
-              onClick={() => day && run(() => cancelBooking(day.iso), "Bestellung storniert.")}
-              className="rounded-full border-2 border-brand-500 px-4 py-2 text-sm font-bold text-brand-700 transition hover:bg-brand-50 disabled:opacity-50"
+              onClick={() =>
+                day &&
+                run(
+                  () => bookDish(dish.id, day.iso, dish.allowNote ? noteValue : undefined),
+                  `„${dish.title}“ für ${day.label} gebucht.`,
+                )
+              }
+              className="shrink-0 rounded-full bg-brand-500 px-5 py-2 text-sm font-extrabold text-white shadow-warm transition hover:bg-brand-600 disabled:opacity-50"
             >
-              Stornieren
+              {currentBooking ? "Wählen" : "Bestellen"}
             </button>
+          )}
+        </div>
+
+        {dish.allowNote && (
+          <div className="mt-3 border-t border-sand-200/70 pt-3">
+            <label className="mb-1 block text-xs font-semibold text-ink-soft">
+              Sonderwunsch (optional)
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <input
+                type="text"
+                value={noteValue}
+                disabled={!day?.bookable}
+                maxLength={300}
+                onChange={(e) => setNotes((prev) => ({ ...prev, [noteKey]: e.target.value }))}
+                placeholder="z. B. ohne Zwiebeln"
+                className="min-w-[12rem] flex-1 rounded-xl border border-sand-300 bg-white px-3 py-2 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-200 disabled:opacity-60"
+              />
+              {isBooked && noteChanged && (
+                <button
+                  disabled={pending || !day?.bookable}
+                  onClick={() =>
+                    day &&
+                    run(() => bookDish(dish.id, day.iso, noteValue), "Sonderwunsch gespeichert.")
+                  }
+                  className="rounded-xl bg-brand-500 px-4 py-2 text-sm font-bold text-white shadow-warm transition hover:bg-brand-600 disabled:opacity-50"
+                >
+                  Notiz speichern
+                </button>
+              )}
+            </div>
           </div>
-        ) : (
-          <button
-            disabled={pending || !day?.bookable}
-            onClick={() =>
-              day &&
-              run(() => bookDish(dish.id, day.iso), `„${dish.title}“ für ${day.label} gebucht.`)
-            }
-            className="shrink-0 rounded-full bg-brand-500 px-5 py-2 text-sm font-extrabold text-white shadow-warm transition hover:bg-brand-600 disabled:opacity-50"
-          >
-            {currentBooking ? "Wählen" : "Bestellen"}
-          </button>
         )}
       </li>
     );

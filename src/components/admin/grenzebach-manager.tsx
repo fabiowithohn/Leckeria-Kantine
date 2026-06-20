@@ -22,6 +22,7 @@ export type LibDish = {
   description: string | null;
   allergens: string[];
   additives: string[];
+  allowNote: boolean;
   hasImage: boolean;
   imageVersion: string;
   slots: string[];
@@ -231,6 +232,10 @@ function LibraryTab({
                   <input name="description" defaultValue={dish.description ?? ""} placeholder="Beschreibung" className={input} />
                   <AllergenPicker selected={dish.allergens} />
                   <AdditivePicker selected={dish.additives} />
+                  <label className="flex items-center gap-2 rounded-lg border border-sand-200 bg-white px-3 py-2 text-sm text-ink">
+                    <input type="checkbox" name="allowNote" defaultChecked={dish.allowNote} className="h-4 w-4 accent-brand-500" />
+                    Sonderwünsche (Freitext) bei der Bestellung erlauben
+                  </label>
                   <div className="flex items-center gap-3">
                     <Thumb dishId={dish.id} hasImage={dish.hasImage} version={dish.imageVersion} />
                     <div className="flex-1">
@@ -325,6 +330,10 @@ function LibraryTab({
           <input name="description" placeholder="Beschreibung" className={input} />
           <AllergenPicker />
           <AdditivePicker />
+          <label className="flex items-center gap-2 rounded-lg border border-sand-200 bg-white px-3 py-2 text-sm text-ink">
+            <input type="checkbox" name="allowNote" className="h-4 w-4 accent-brand-500" />
+            Sonderwünsche (Freitext) bei der Bestellung erlauben
+          </label>
           <div>
             <label className="mb-1 block text-xs font-semibold text-ink-soft">Vorschaubild (optional)</label>
             <input type="file" name="image" accept="image/*" className="block w-full text-sm text-ink-soft file:mr-3 file:rounded-full file:border-0 file:bg-brand-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-brand-700" />

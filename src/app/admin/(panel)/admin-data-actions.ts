@@ -75,6 +75,7 @@ export async function createLibraryDish(
       description: String(formData.get("description") ?? "").trim() || null,
       allergens: parseAllergens(formData),
       additives: parseAdditives(formData),
+      allowNote: formData.get("allowNote") === "on",
       ...(image ? { imageData: image.data, imageMime: image.mime } : {}),
     },
   });
@@ -101,6 +102,7 @@ export async function updateLibraryDish(id: string, formData: FormData): Promise
       description: String(formData.get("description") ?? "").trim() || null,
       allergens: parseAllergens(formData),
       additives: parseAdditives(formData),
+      allowNote: formData.get("allowNote") === "on",
       // Bild nur ersetzen, wenn ein neues hochgeladen wurde
       ...(image ? { imageData: image.data, imageMime: image.mime } : {}),
     },
