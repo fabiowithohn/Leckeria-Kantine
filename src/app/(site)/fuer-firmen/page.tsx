@@ -81,17 +81,17 @@ const ZIELGRUPPEN = [
   },
 ];
 
-const ARGUMENTE = [
-  "Plug & Play – Leckeria liefert, befüllt und wartet täglich",
-  "Keine eigene Kantine nötig – ideal für jede Unternehmensgröße",
-  "Steuerlich absetzbar – 100 % Betriebsausgabe",
-  "Mitarbeiterbindung – 76 % der Führungskräfte sehen Verpflegung als stärksten Bindungsfaktor",
-  "Employer Branding – sichtbarer Benefit im Fachkräftewettbewerb",
-  "Regional & frisch – täglich mit frischen Produkten befüllt",
-  "Seit 2020 bewährt – nachgewiesene Erfahrung mit Betrieben der Region",
-  "Maßgeschneidert – von der Einzellösung bis zum Mehrstandort-Konzept",
-  "Entlastung für HR & Management – kein organisatorischer Aufwand",
-  "Zufriedenere Mitarbeiter – weniger Krankheitsausfälle, bessere Stimmung",
+const ARGUMENTE: { title: string; detail: string }[] = [
+  { title: "Plug & Play", detail: "Leckeria liefert, befüllt und wartet täglich." },
+  { title: "Keine eigene Kantine nötig", detail: "Ideal für jede Unternehmensgröße." },
+  { title: "Steuerlich absetzbar", detail: "100 % als Betriebsausgabe ansetzbar." },
+  { title: "Mitarbeiterbindung", detail: "76 % der Führungskräfte sehen Verpflegung als stärksten Bindungsfaktor." },
+  { title: "Employer Branding", detail: "Sichtbarer Benefit im Fachkräftewettbewerb." },
+  { title: "Regional & frisch", detail: "Täglich mit frischen Produkten befüllt." },
+  { title: "Seit 2020 bewährt", detail: "Nachgewiesene Erfahrung mit Betrieben der Region." },
+  { title: "Maßgeschneidert", detail: "Von der Einzellösung bis zum Mehrstandort-Konzept." },
+  { title: "Entlastung für HR & Management", detail: "Kein organisatorischer Aufwand für dich." },
+  { title: "Zufriedenere Mitarbeiter", detail: "Weniger Krankheitsausfälle, bessere Stimmung." },
 ];
 
 export default function FuerFirmenPage() {
@@ -223,15 +223,26 @@ export default function FuerFirmenPage() {
             eyebrow="Auf einen Blick"
             title="10 gute Gründe für Leckeria"
           />
-          <ul className="mt-10 grid gap-4 sm:grid-cols-2">
-            {ARGUMENTE.map((arg) => (
-              <li key={arg} className="flex items-start gap-3 rounded-2xl border border-sand-200 bg-white p-4">
-                <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-herb-500/15 text-herb-600">
-                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 6 9 17l-5-5" />
-                  </svg>
+          <p className="mt-2 text-center text-sm text-ink-soft">
+            <span className="hidden sm:inline">Fahre über eine Karte, um mehr zu erfahren.</span>
+          </p>
+          <ul className="mt-8 grid gap-4 sm:grid-cols-2">
+            {ARGUMENTE.map((arg, i) => (
+              <li
+                key={arg.title}
+                className="group flex items-start gap-4 rounded-2xl border border-sand-200 bg-white p-5 transition duration-300 hover:-translate-y-1 hover:border-brand-200 hover:shadow-warm"
+              >
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-500 text-sm font-extrabold text-white shadow-warm transition-transform duration-300 group-hover:scale-110">
+                  {i + 1}
                 </span>
-                <span className="text-sm text-ink">{arg}</span>
+                <div className="min-w-0">
+                  <p className="font-extrabold text-ink">{arg.title}</p>
+                  <div className="grid grid-rows-[1fr] opacity-100 transition-all duration-300 ease-out sm:grid-rows-[0fr] sm:opacity-0 sm:group-hover:grid-rows-[1fr] sm:group-hover:opacity-100">
+                    <div className="overflow-hidden">
+                      <p className="mt-1 text-sm leading-relaxed text-ink-soft">{arg.detail}</p>
+                    </div>
+                  </div>
+                </div>
               </li>
             ))}
           </ul>
