@@ -83,9 +83,11 @@ export default async function GrenzebachPage() {
       date: { in: allDates.map(dbDateFromISO) },
     },
   });
-  const bookingMap: Record<string, { dishId: string; title: string; note: string | null }> = {};
+  // Pro Tag eine Liste der Portionen (mehrere Gerichte / Mehrfachbestellungen möglich)
+  const bookingMap: Record<string, { dishId: string; note: string | null }[]> = {};
   for (const b of bookings) {
-    bookingMap[isoFromDate(b.date)] = { dishId: b.dishId, title: b.dishTitleSnapshot, note: b.note };
+    const iso = isoFromDate(b.date);
+    (bookingMap[iso] ??= []).push({ dishId: b.dishId, note: b.note });
   }
 
   return (

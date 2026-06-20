@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { type WeekdayCode, type DayInfo } from "@/lib/time";
 import { allergensByNrs, additivesByCodes } from "@/lib/allergens";
 import { MarkIcon } from "@/components/mark-icon";
-import { bookDish, cancelBooking } from "@/app/(site)/grenzebach/booking-actions";
+import { setDishOrder } from "@/app/(site)/grenzebach/booking-actions";
+
+const MAX_PORTIONS = 20;
 
 export type DishDTO = {
   id: string;
@@ -49,15 +51,6 @@ function MarkBadges({ allergens, additives }: { allergens: string[]; additives: 
   );
 }
 
-type WeekDTO = { offset: 0 | 1; label: string; days: DayInfo[] };
-
-type Props = {
-  dailyFixed: DishDTO[];
-  byWeekday: Record<WeekdayCode, DishDTO[]>;
-  weeks: WeekDTO[];
-  bookings: Record<string, { dishId: string; title: string; note: string | null }>;
-};
-
 function DishImage({ dish }: { dish: DishDTO }) {
   if (dish.hasImage) {
     // eslint-disable-next-line @next/next/no-img-element
@@ -76,13 +69,127 @@ function DishImage({ dish }: { dish: DishDTO }) {
   );
 }
 
+/**
+ * Eine Gericht-Karte mit Mengen-Stepper und – bei Freitext-Gerichten – einem
+ * Sonderwunsch-Feld pro Portion. Eigenständige Komponente mit lokalem State,
+ * damit Tippen flüssig bleibt (kein Fokusverlust).
+ */
+function DishCard({
+  dish,
+  savedNotes,
+  bookable,
+  pending,
+  onSave,
+}: {
+  dish: DishDTO;
+  savedNotes: string[];
+  bookable: boolean;
+  pending: boolean;
+  onSave: (dishId: string, notes: string[]) => void;
+}) {
+  const [draft, setDraft] = useState<string[]>(savedNotes);
+  const qty = draft.length;
+
+  function commit(next: string[]) {
+    setDraft(next);
+    onSave(dish.id, next);
+  }
+  function inc() {
+    if (qty < MAX_PORTIONS) commit([...draft, ""]);
+  }
+  function dec() {
+    if (qty > 0) commit(draft.slice(0, qty - 1));
+  }
+
+  const stepBtn =
+    "grid h-9 w-9 place-items-center rounded-full border border-sand-300 text-lg font-bold text-ink transition hover:bg-sand-100 disabled:opacity-40";
+
+  return (
+    <li
+      className={`rounded-2xl border p-3 sm:p-4 ${
+        qty > 0 ? "border-herb-500/50 bg-herb-500/5" : "border-sand-200 bg-white"
+      }`}
+    >
+      <div className="flex items-center gap-4">
+        <DishImage dish={dish} />
+        <div className="min-w-0 flex-1">
+          <p className="font-bold text-ink">
+            {dish.title}
+            {qty > 0 && (
+              <span className="ml-2 rounded-full bg-herb-500/15 px-2 py-0.5 text-xs font-bold text-herb-600">
+                {qty}× gebucht
+              </span>
+            )}
+          </p>
+          {dish.description && <p className="text-sm text-ink-soft">{dish.description}</p>}
+          <MarkBadges allergens={dish.allergens} additives={dish.additives} />
+        </div>
+
+        {/* Mengen-Stepper */}
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={dec}
+            disabled={!bookable || pending || qty === 0}
+            aria-label="Eine Portion weniger"
+            className={stepBtn}
+          >
+            −
+          </button>
+          <span className="w-6 text-center text-lg font-extrabold text-ink">{qty}</span>
+          <button
+            type="button"
+            onClick={inc}
+            disabled={!bookable || pending || qty >= MAX_PORTIONS}
+            aria-label="Eine Portion mehr"
+            className={stepBtn}
+          >
+            +
+          </button>
+        </div>
+      </div>
+
+      {/* Sonderwunsch je Portion (nur wenn erlaubt und mind. 1 Portion) */}
+      {dish.allowNote && qty > 0 && (
+        <div className="mt-3 space-y-2 border-t border-sand-200/70 pt-3">
+          <p className="text-xs font-semibold text-ink-soft">Sonderwünsche (optional)</p>
+          {draft.map((n, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <span className="w-16 shrink-0 text-xs text-ink-soft">Portion {i + 1}</span>
+              <input
+                type="text"
+                value={n}
+                disabled={!bookable || pending}
+                maxLength={300}
+                placeholder="z. B. ohne Zwiebeln"
+                onChange={(e) =>
+                  setDraft((prev) => prev.map((v, idx) => (idx === i ? e.target.value : v)))
+                }
+                onBlur={() => onSave(dish.id, draft)}
+                className="min-w-0 flex-1 rounded-xl border border-sand-300 bg-white px-3 py-2 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-200 disabled:opacity-60"
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </li>
+  );
+}
+
+type WeekDTO = { offset: 0 | 1; label: string; days: DayInfo[] };
+
+type Props = {
+  dailyFixed: DishDTO[];
+  byWeekday: Record<WeekdayCode, DishDTO[]>;
+  weeks: WeekDTO[];
+  bookings: Record<string, { dishId: string; note: string | null }[]>;
+};
+
 export function BookingDashboard({ dailyFixed, byWeekday, weeks, bookings }: Props) {
   const router = useRouter();
   const [weekIdx, setWeekIdx] = useState(0);
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
-  // Sonderwünsche pro Tag+Gericht (Freitext), keyed by `${iso}-${dishId}`
-  const [notes, setNotes] = useState<Record<string, string>>({});
 
   const week = weeks[weekIdx];
   const firstBookable = week.days.find((d) => d.bookable) ?? week.days[0];
@@ -96,8 +203,6 @@ export function BookingDashboard({ dailyFixed, byWeekday, weeks, bookings }: Pro
   }
 
   function run(action: () => Promise<{ ok?: boolean; error?: string }>, okText: string) {
-    // Bewusst KEIN setFeedback(null) vorab: die bisherige Meldung bleibt stehen,
-    // bis sie nahtlos durch die neue ersetzt wird (kein Layout-Sprung dazwischen).
     startTransition(async () => {
       const res = await action();
       if (res.error) setFeedback({ kind: "err", text: res.error });
@@ -107,94 +212,45 @@ export function BookingDashboard({ dailyFixed, byWeekday, weeks, bookings }: Pro
   }
 
   const day: DayInfo | undefined = week.days.find((d) => d.iso === dayIso);
-  const currentBooking = day ? bookings[day.iso] : undefined;
   const weekdayDishes = day ? byWeekday[day.weekday] : [];
+  const dayPortions = day ? bookings[day.iso] ?? [] : [];
 
-  function DishRow({ dish }: { dish: DishDTO }) {
-    const isBooked = currentBooking?.dishId === dish.id;
-    const noteKey = `${day?.iso ?? ""}-${dish.id}`;
-    const savedNote = isBooked ? currentBooking?.note ?? "" : "";
-    const noteValue = notes[noteKey] ?? savedNote;
-    const noteChanged = noteValue.trim() !== savedNote.trim();
-    return (
-      <li
-        className={`rounded-2xl border p-3 sm:p-4 ${
-          isBooked ? "border-herb-500/50 bg-herb-500/5" : "border-sand-200 bg-white"
-        }`}
-      >
-        <div className="flex items-center gap-4">
-          <DishImage dish={dish} />
-          <div className="min-w-0 flex-1">
-            <p className="font-bold text-ink">{dish.title}</p>
-            {dish.description && <p className="text-sm text-ink-soft">{dish.description}</p>}
-            <MarkBadges allergens={dish.allergens} additives={dish.additives} />
-          </div>
-          {isBooked ? (
-            <div className="flex shrink-0 items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-herb-500/15 px-4 py-2 text-sm font-bold text-herb-600">
-                ✓ Gebucht
-              </span>
-              <button
-                disabled={pending || !day?.bookable}
-                onClick={() => day && run(() => cancelBooking(day.iso), "Bestellung storniert.")}
-                className="rounded-full border-2 border-brand-500 px-4 py-2 text-sm font-bold text-brand-700 transition hover:bg-brand-50 disabled:opacity-50"
-              >
-                Stornieren
-              </button>
-            </div>
-          ) : (
-            <button
-              disabled={pending || !day?.bookable}
-              onClick={() =>
-                day &&
-                run(
-                  () => bookDish(dish.id, day.iso, dish.allowNote ? noteValue : undefined),
-                  `„${dish.title}“ für ${day.label} gebucht.`,
-                )
-              }
-              className="shrink-0 rounded-full bg-brand-500 px-5 py-2 text-sm font-extrabold text-white shadow-warm transition hover:bg-brand-600 disabled:opacity-50"
-            >
-              {currentBooking ? "Wählen" : "Bestellen"}
-            </button>
-          )}
-        </div>
+  const allDishes = [...dailyFixed, ...Object.values(byWeekday).flat()];
+  const titleById = new Map(allDishes.map((d) => [d.id, d.title]));
 
-        {dish.allowNote && (
-          <div className="mt-3 border-t border-sand-200/70 pt-3">
-            <label className="mb-1 block text-xs font-semibold text-ink-soft">
-              Sonderwunsch (optional)
-            </label>
-            <div className="flex flex-wrap gap-2">
-              <input
-                type="text"
-                value={noteValue}
-                disabled={!day?.bookable}
-                maxLength={300}
-                onChange={(e) => setNotes((prev) => ({ ...prev, [noteKey]: e.target.value }))}
-                placeholder="z. B. ohne Zwiebeln"
-                className="min-w-[12rem] flex-1 rounded-xl border border-sand-300 bg-white px-3 py-2 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-200 disabled:opacity-60"
-              />
-              {isBooked && noteChanged && (
-                <button
-                  disabled={pending || !day?.bookable}
-                  onClick={() =>
-                    day &&
-                    run(() => bookDish(dish.id, day.iso, noteValue), "Sonderwunsch gespeichert.")
-                  }
-                  className="rounded-xl bg-brand-500 px-4 py-2 text-sm font-bold text-white shadow-warm transition hover:bg-brand-600 disabled:opacity-50"
-                >
-                  Notiz speichern
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-      </li>
+  // Zusammenfassung der Tagesbestellung ("2× Burger, 1× Salat")
+  const countByDish = new Map<string, number>();
+  for (const p of dayPortions) countByDish.set(p.dishId, (countByDish.get(p.dishId) ?? 0) + 1);
+  const summaryText = [...countByDish.entries()]
+    .map(([id, c]) => `${c}× ${titleById.get(id) ?? "Gericht"}`)
+    .join(", ");
+
+  function savedNotesFor(dishId: string): string[] {
+    return dayPortions.filter((p) => p.dishId === dishId).map((p) => p.note ?? "");
+  }
+
+  function saveDish(dishId: string, notes: string[]) {
+    if (!day) return;
+    const title = titleById.get(dishId) ?? "Gericht";
+    run(
+      () => setDishOrder(dishId, day.iso, notes),
+      notes.length > 0 ? `„${title}“ aktualisiert (${notes.length}×).` : `„${title}“ entfernt.`,
     );
   }
 
-  // Alle in der Speisekarte vorkommenden Allergene & Zusatzstoffe (für die Aufschlüsselung unten)
-  const allDishes = [...dailyFixed, ...Object.values(byWeekday).flat()];
+  function renderDish(dish: DishDTO) {
+    return (
+      <DishCard
+        key={`${day?.iso ?? ""}-${dish.id}`}
+        dish={dish}
+        savedNotes={savedNotesFor(dish.id)}
+        bookable={!!day?.bookable}
+        pending={pending}
+        onSave={saveDish}
+      />
+    );
+  }
+
   const presentAllergens = allergensByNrs(
     Array.from(new Set(allDishes.flatMap((d) => d.allergens))),
   );
@@ -205,121 +261,113 @@ export function BookingDashboard({ dailyFixed, byWeekday, weeks, bookings }: Pro
   return (
     <>
       <div className="overflow-hidden rounded-3xl border border-sand-200 bg-white shadow-warm">
-      {/* Wochenwahl – nur anzeigen, wenn es mehr als eine Woche gibt */}
-      {weeks.length > 1 && (
-        <div className="flex flex-wrap items-center gap-2 border-b border-sand-200 bg-sand-50 px-5 py-4">
-          <span className="mr-2 text-sm font-bold text-ink-soft">Woche:</span>
-          {weeks.map((w, i) => (
-            <button
-              key={w.offset}
-              onClick={() => changeWeek(i)}
-              className={`rounded-full px-4 py-1.5 text-sm font-bold transition ${
-                i === weekIdx ? "bg-brand-500 text-white shadow-warm" : "bg-white text-ink hover:bg-sand-100"
-              }`}
-            >
-              {w.label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Tagesauswahl (Wochentag + Datum) */}
-      <div className="flex gap-2 overflow-x-auto border-b border-sand-200 px-4 py-4">
-        {week.days.map((d) => (
-          <button
-            key={d.iso}
-            onClick={() => {
-              setDayIso(d.iso);
-              setFeedback(null);
-            }}
-            className={`min-w-[5.5rem] rounded-2xl border px-3 py-2 text-center transition ${
-              d.iso === dayIso
-                ? "border-brand-500 bg-brand-50 text-brand-700"
-                : "border-sand-200 bg-white text-ink hover:bg-sand-100"
-            } ${!d.bookable ? "opacity-60" : ""}`}
-          >
-            <span className="block text-sm font-extrabold">{d.label}</span>
-            <span className="block text-xs text-ink-soft">{d.dayLabel}</span>
-          </button>
-        ))}
-      </div>
-
-      <div className="p-5 sm:p-7">
-        {feedback && (
-          <p
-            className={`mb-5 rounded-xl px-4 py-3 text-sm font-medium ${
-              feedback.kind === "ok" ? "bg-herb-500/10 text-herb-600" : "bg-brand-100 text-brand-700"
-            }`}
-          >
-            {feedback.text}
-          </p>
-        )}
-
-        {/* Tageskopf */}
-        {day && (
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-sand-50 px-4 py-3">
-            <div>
-              <p className="font-bold text-ink">
-                {day.label} · {day.dayLabel}
-              </p>
-              {currentBooking ? (
-                <p className="text-sm text-ink-soft">
-                  Deine Bestellung: <strong>{currentBooking.title}</strong>
-                </p>
-              ) : (
-                <p className="text-sm text-ink-soft">Noch keine Bestellung für diesen Tag.</p>
-              )}
-            </div>
-            {!day.bookable && (
-              <span className="rounded-full bg-brand-100 px-3 py-1 text-xs font-bold text-brand-700">
-                {day.isPast ? "Vergangener Tag" : "Bestellschluss vorbei"}
-              </span>
-            )}
+        {/* Wochenwahl – nur anzeigen, wenn es mehr als eine Woche gibt */}
+        {weeks.length > 1 && (
+          <div className="flex flex-wrap items-center gap-2 border-b border-sand-200 bg-sand-50 px-5 py-4">
+            <span className="mr-2 text-sm font-bold text-ink-soft">Woche:</span>
+            {weeks.map((w, i) => (
+              <button
+                key={w.offset}
+                onClick={() => changeWeek(i)}
+                className={`rounded-full px-4 py-1.5 text-sm font-bold transition ${
+                  i === weekIdx ? "bg-brand-500 text-white shadow-warm" : "bg-white text-ink hover:bg-sand-100"
+                }`}
+              >
+                {w.label}
+              </button>
+            ))}
           </div>
         )}
 
-        {/* Tagesmenü */}
-        {weekdayDishes.length > 0 && (
-          <section className="mb-6">
-            <h3 className="mb-3 text-sm font-extrabold uppercase tracking-wider text-brand-500">
-              Tagesmenü
-            </h3>
-            <ul className="space-y-3">
-              {weekdayDishes.map((dish) => (
-                <DishRow key={dish.id} dish={dish} />
-              ))}
-            </ul>
-          </section>
-        )}
+        {/* Tagesauswahl (Wochentag + Datum) */}
+        <div className="flex gap-2 overflow-x-auto border-b border-sand-200 px-4 py-4">
+          {week.days.map((d) => (
+            <button
+              key={d.iso}
+              onClick={() => {
+                setDayIso(d.iso);
+                setFeedback(null);
+              }}
+              className={`min-w-[5.5rem] rounded-2xl border px-3 py-2 text-center transition ${
+                d.iso === dayIso
+                  ? "border-brand-500 bg-brand-50 text-brand-700"
+                  : "border-sand-200 bg-white text-ink hover:bg-sand-100"
+              } ${!d.bookable ? "opacity-60" : ""}`}
+            >
+              <span className="block text-sm font-extrabold">{d.label}</span>
+              <span className="block text-xs text-ink-soft">{d.dayLabel}</span>
+            </button>
+          ))}
+        </div>
 
-        {/* Täglich verfügbar */}
-        {dailyFixed.length > 0 && (
-          <section>
-            <h3 className="mb-3 text-sm font-extrabold uppercase tracking-wider text-herb-600">
-              Täglich verfügbar
-            </h3>
-            <ul className="space-y-3">
-              {dailyFixed.map((dish) => (
-                <DishRow key={dish.id} dish={dish} />
-              ))}
-            </ul>
-          </section>
-        )}
+        <div className="p-5 sm:p-7">
+          {feedback && (
+            <p
+              className={`mb-5 rounded-xl px-4 py-3 text-sm font-medium ${
+                feedback.kind === "ok" ? "bg-herb-500/10 text-herb-600" : "bg-brand-100 text-brand-700"
+              }`}
+            >
+              {feedback.text}
+            </p>
+          )}
 
-        {weekdayDishes.length === 0 && dailyFixed.length === 0 && (
-          <p className="text-ink-soft">Für diesen Tag sind aktuell keine Gerichte hinterlegt.</p>
-        )}
+          {/* Tageskopf */}
+          {day && (
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-sand-50 px-4 py-3">
+              <div>
+                <p className="font-bold text-ink">
+                  {day.label} · {day.dayLabel}
+                </p>
+                {dayPortions.length > 0 ? (
+                  <p className="text-sm text-ink-soft">
+                    Deine Bestellung: <strong>{summaryText}</strong>
+                  </p>
+                ) : (
+                  <p className="text-sm text-ink-soft">Noch keine Bestellung für diesen Tag.</p>
+                )}
+              </div>
+              {!day.bookable && (
+                <span className="rounded-full bg-brand-100 px-3 py-1 text-xs font-bold text-brand-700">
+                  {day.isPast ? "Vergangener Tag" : "Bestellschluss vorbei"}
+                </span>
+              )}
+            </div>
+          )}
 
-        <p className="mt-5 text-xs text-ink-soft">
-          Hinweis: Pro Tag ist genau eine Bestellung möglich. „Bestellen“
-          ersetzt deine aktuelle Auswahl. Änderung/Stornierung bis 09:30 Uhr am
-          Bestelltag.
-        </p>
-        <p className="mt-1 text-xs text-ink-soft">
-          Bei den gezeigten Gerichten, handelt es sich um Beispielbilder.
-          Abweichungen sind möglich.
-        </p>
-      </div>
+          {/* Tagesmenü */}
+          {weekdayDishes.length > 0 && (
+            <section className="mb-6">
+              <h3 className="mb-3 text-sm font-extrabold uppercase tracking-wider text-brand-500">
+                Tagesmenü
+              </h3>
+              <ul className="space-y-3">{weekdayDishes.map(renderDish)}</ul>
+            </section>
+          )}
+
+          {/* Täglich verfügbar */}
+          {dailyFixed.length > 0 && (
+            <section>
+              <h3 className="mb-3 text-sm font-extrabold uppercase tracking-wider text-herb-600">
+                Täglich verfügbar
+              </h3>
+              <ul className="space-y-3">{dailyFixed.map(renderDish)}</ul>
+            </section>
+          )}
+
+          {weekdayDishes.length === 0 && dailyFixed.length === 0 && (
+            <p className="text-ink-soft">Für diesen Tag sind aktuell keine Gerichte hinterlegt.</p>
+          )}
+
+          <p className="mt-5 text-xs text-ink-soft">
+            Hinweis: Du kannst mehrere Gerichte und Portionen über die Anzahl (− / +)
+            bestellen. Änderungen werden automatisch gespeichert – Änderung/Stornierung
+            bis 09:30 Uhr am Bestelltag.
+          </p>
+          <p className="mt-1 text-xs text-ink-soft">
+            Bei den gezeigten Gerichten, handelt es sich um Beispielbilder.
+            Abweichungen sind möglich.
+          </p>
+        </div>
       </div>
 
       {/* Aufschlüsselung der Allergene */}

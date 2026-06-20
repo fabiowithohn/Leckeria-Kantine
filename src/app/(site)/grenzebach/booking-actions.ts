@@ -19,11 +19,18 @@ function allowedDates(): Set<string> {
 }
 
 const ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
+const MAX_PORTIONS = 20;
 
-export async function bookDish(
+/**
+ * Setzt die Bestellung für EIN Gericht an einem Tag: legt genau `notes.length`
+ * Portionen an (eine Zeile pro Portion, mit eigenem Sonderwunsch). Eine
+ * bestehende Auswahl dieses Gerichts an diesem Tag wird ersetzt. Anzahl 0 =
+ * Gericht für diesen Tag abbestellen.
+ */
+export async function setDishOrder(
   dishId: string,
   dateISO: string,
-  note?: string,
+  notes: string[],
 ): Promise<BookingResult> {
   const session = await auth();
   if (!session?.user?.id) return { error: "Bitte zuerst einloggen." };
@@ -50,41 +57,22 @@ export async function bookDish(
     return { error: "Dieses Gericht ist an diesem Tag nicht verfügbar." };
   }
 
-  // Sonderwunsch nur übernehmen, wenn das Gericht es erlaubt (sonst leeren)
-  const cleanNote =
-    dish.allowNote && typeof note === "string" ? note.trim().slice(0, 300) || null : null;
+  const list = Array.isArray(notes) ? notes.slice(0, MAX_PORTIONS) : [];
+  const date = dbDateFromISO(dateISO);
+  const rows = list.map((n) => ({
+    userId: session.user!.id,
+    date,
+    dishId: dish.id,
+    dishTitleSnapshot: dish.title,
+    // Sonderwunsch nur, wenn das Gericht es erlaubt
+    note: dish.allowNote && typeof n === "string" ? n.trim().slice(0, 300) || null : null,
+  }));
 
-  // Genau 1 Bestellung pro Tag → upsert ersetzt eine bestehende Auswahl
-  await prisma.booking.upsert({
-    where: { userId_date: { userId: session.user.id, date: dbDateFromISO(dateISO) } },
-    update: { dishId: dish.id, dishTitleSnapshot: dish.title, note: cleanNote },
-    create: {
-      userId: session.user.id,
-      date: dbDateFromISO(dateISO),
-      dishId: dish.id,
-      dishTitleSnapshot: dish.title,
-      note: cleanNote,
-    },
-  });
-
-  revalidatePath("/grenzebach");
-  return { ok: true };
-}
-
-export async function cancelBooking(dateISO: string): Promise<BookingResult> {
-  const session = await auth();
-  if (!session?.user?.id) return { error: "Bitte zuerst einloggen." };
-
-  if (!ISO_RE.test(dateISO)) return { error: "Ungültiges Datum." };
-  if (!isBeforeDeadline(dateISO)) {
-    return { error: "Stornieren ist nach Bestellschluss (09:30 Uhr) nicht mehr möglich." };
-  }
-
-  await prisma.booking
-    .delete({
-      where: { userId_date: { userId: session.user.id, date: dbDateFromISO(dateISO) } },
-    })
-    .catch(() => {});
+  // Bestehende Portionen dieses Gerichts ersetzen (alte löschen, neue anlegen)
+  await prisma.$transaction([
+    prisma.booking.deleteMany({ where: { userId: session.user.id, dishId: dish.id, date } }),
+    ...(rows.length ? [prisma.booking.createMany({ data: rows })] : []),
+  ]);
 
   revalidatePath("/grenzebach");
   return { ok: true };

@@ -86,7 +86,7 @@ model MenuAssignment {
   @@index([slot, active])
 }
 
-/// Bestellung: genau eine pro Mitarbeiter und Kalendertag
+/// Bestellung: eine Zeile pro Portion (mehrere Gerichte/Portionen pro Tag möglich)
 model Booking {
   id                String   @id @default(cuid())
   userId            String
@@ -99,8 +99,8 @@ model Booking {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  @@unique([userId, date]) // erzwingt 1 Menü pro Tag
   @@index([date])
+  @@index([userId, date])
 }
 
 /// Öffentliche Speisekarte ("Speisepläne" im Admin) – Drag & Drop pflegbar
