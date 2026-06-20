@@ -63,15 +63,19 @@ export default function PartyservicePage() {
             {PACKAGES.map((p) => (
               <div
                 key={p.name}
-                className="group rounded-3xl border border-sand-200 bg-white p-7 transition hover:-translate-y-1.5 hover:shadow-warm"
+                className="group relative overflow-hidden rounded-3xl border border-sand-200 bg-white p-7 transition duration-300 hover:-translate-y-1.5 hover:border-brand-200 hover:shadow-warm"
               >
-                <span className={`grid h-14 w-14 place-items-center rounded-2xl ${p.color}`}>
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-gradient-to-br from-brand-100/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                />
+                <span className={`relative grid h-14 w-14 place-items-center rounded-2xl ${p.color} transition-transform duration-300 group-hover:scale-110`}>
                   <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
                     <path d={p.icon} />
                   </svg>
                 </span>
-                <h3 className="mt-5 text-xl text-ink">{p.name}</h3>
-                <p className="mt-2 text-ink-soft">{p.text}</p>
+                <h3 className="relative mt-5 text-xl text-ink">{p.name}</h3>
+                <p className="relative mt-2 text-ink-soft">{p.text}</p>
               </div>
             ))}
           </div>
