@@ -26,8 +26,8 @@ export default async function AdminBestellungenPage({
   }
   const summaryRows = [...summary.entries()].sort((a, b) => b[1] - a[1]);
 
-  // Schnellauswahl: kommende Werktage
-  const quickDays = [...weekdays(0), ...weekdays(1)].filter((d) => !d.isPast);
+  // Schnellauswahl: Werktage der aktuellen Woche (Mo–Fr)
+  const quickDays = weekdays(0);
 
   return (
     <div>
