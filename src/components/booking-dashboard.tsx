@@ -104,49 +104,76 @@ function DishCard({
   const stepBtn =
     "grid h-9 w-9 place-items-center rounded-full border border-sand-300 text-lg font-bold text-ink transition hover:bg-sand-100 disabled:opacity-40";
 
+  const titleEl = (
+    <p className="font-bold text-ink">
+      {dish.title}
+      {qty > 0 && (
+        <span className="ml-2 rounded-full bg-herb-500/15 px-2 py-0.5 text-xs font-bold text-herb-600">
+          {qty}× gebucht
+        </span>
+      )}
+    </p>
+  );
+
+  const descEl = dish.description ? (
+    <p className="text-sm text-ink-soft">{dish.description}</p>
+  ) : null;
+
+  const hasMarks = dish.allergens.length > 0 || dish.additives.length > 0;
+  const badgesEl = <MarkBadges allergens={dish.allergens} additives={dish.additives} />;
+
+  const stepperEl = (
+    <div className="flex shrink-0 items-center gap-2">
+      <button
+        type="button"
+        onClick={dec}
+        disabled={!bookable || pending || qty === 0}
+        aria-label="Eine Portion weniger"
+        className={stepBtn}
+      >
+        −
+      </button>
+      <span className="w-6 text-center text-lg font-extrabold text-ink">{qty}</span>
+      <button
+        type="button"
+        onClick={inc}
+        disabled={!bookable || pending || qty >= MAX_PORTIONS}
+        aria-label="Eine Portion mehr"
+        className={stepBtn}
+      >
+        +
+      </button>
+    </div>
+  );
+
   return (
     <li
       className={`rounded-2xl border p-3 sm:p-4 ${
         qty > 0 ? "border-herb-500/50 bg-herb-500/5" : "border-sand-200 bg-white"
       }`}
     >
-      <div className="flex items-center gap-4">
+      {/* Mobil: Name oben · darunter Bild + Mengenwahl · darunter Allergene */}
+      <div className="sm:hidden">
+        <div className="min-w-0">
+          {titleEl}
+          {descEl}
+        </div>
+        <div className="mt-3 flex items-center gap-4">
+          <DishImage dish={dish} />
+          <div className="ml-auto">{stepperEl}</div>
+        </div>
+        {hasMarks && <div className="mt-3">{badgesEl}</div>}
+      </div>
+
+      {/* Ab sm: kompakte Zeile (Bild · Text · Mengenwahl) */}
+      <div className="hidden items-center gap-4 sm:flex">
         <DishImage dish={dish} />
         <div className="min-w-0 flex-1">
-          <p className="font-bold text-ink">
-            {dish.title}
-            {qty > 0 && (
-              <span className="ml-2 rounded-full bg-herb-500/15 px-2 py-0.5 text-xs font-bold text-herb-600">
-                {qty}× gebucht
-              </span>
-            )}
-          </p>
-          {dish.description && <p className="text-sm text-ink-soft">{dish.description}</p>}
-          <MarkBadges allergens={dish.allergens} additives={dish.additives} />
+          {titleEl}
+          {descEl}
+          {badgesEl}
         </div>
-
-        {/* Mengen-Stepper */}
-        <div className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={dec}
-            disabled={!bookable || pending || qty === 0}
-            aria-label="Eine Portion weniger"
-            className={stepBtn}
-          >
-            −
-          </button>
-          <span className="w-6 text-center text-lg font-extrabold text-ink">{qty}</span>
-          <button
-            type="button"
-            onClick={inc}
-            disabled={!bookable || pending || qty >= MAX_PORTIONS}
-            aria-label="Eine Portion mehr"
-            className={stepBtn}
-          >
-            +
-          </button>
-        </div>
+        {stepperEl}
       </div>
 
       {/* Sonderwunsch je Portion (nur wenn erlaubt und mind. 1 Portion) */}
