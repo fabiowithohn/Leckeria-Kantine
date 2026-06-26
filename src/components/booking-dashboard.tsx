@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { type WeekdayCode, type DayInfo } from "@/lib/time";
 import { allergensByNrs, additivesByCodes } from "@/lib/allergens";
@@ -217,6 +217,10 @@ export function BookingDashboard({ dailyFixed, byWeekday, weeks, bookings }: Pro
   const [weekIdx, setWeekIdx] = useState(0);
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  // Lokaler (optimistischer) Stand der Tagesbestellungen: Die UI reagiert sofort,
+  // ohne nach jeder Aktion die ganze Seite neu vom Server zu laden.
+  const [localBookings, setLocalBookings] = useState(bookings);
+  useEffect(() => setLocalBookings(bookings), [bookings]);
 
   const week = weeks[weekIdx];
   const firstBookable = week.days.find((d) => d.bookable) ?? week.days[0];
@@ -229,21 +233,13 @@ export function BookingDashboard({ dailyFixed, byWeekday, weeks, bookings }: Pro
     setFeedback(null);
   }
 
-  function run(action: () => Promise<{ ok?: boolean; error?: string }>, okText: string) {
-    startTransition(async () => {
-      const res = await action();
-      if (res.error) setFeedback({ kind: "err", text: res.error });
-      else setFeedback({ kind: "ok", text: okText });
-      router.refresh();
-    });
-  }
-
   const day: DayInfo | undefined = week.days.find((d) => d.iso === dayIso);
   const weekdayDishes = day ? byWeekday[day.weekday] : [];
-  const dayPortions = day ? bookings[day.iso] ?? [] : [];
+  const dayPortions = day ? localBookings[day.iso] ?? [] : [];
 
   const allDishes = [...dailyFixed, ...Object.values(byWeekday).flat()];
   const titleById = new Map(allDishes.map((d) => [d.id, d.title]));
+  const allowNoteById = new Map(allDishes.map((d) => [d.id, d.allowNote]));
 
   // Zusammenfassung der Tagesbestellung ("2× Burger, 1× Salat")
   const countByDish = new Map<string, number>();
@@ -258,11 +254,36 @@ export function BookingDashboard({ dailyFixed, byWeekday, weeks, bookings }: Pro
 
   function saveDish(dishId: string, notes: string[]) {
     if (!day) return;
+    const iso = day.iso;
     const title = titleById.get(dishId) ?? "Gericht";
-    run(
-      () => setDishOrder(dishId, day.iso, notes),
-      notes.length > 0 ? `„${title}“ aktualisiert (${notes.length}×).` : `„${title}“ entfernt.`,
-    );
+    const allowNote = allowNoteById.get(dishId) ?? false;
+
+    // Sofort optimistisch im lokalen Stand spiegeln (snappy, kein Full-Refresh).
+    setLocalBookings((prev) => {
+      const others = (prev[iso] ?? []).filter((p) => p.dishId !== dishId);
+      const updated = notes.map((n) => ({
+        dishId,
+        note: allowNote && n.trim() ? n.trim().slice(0, 300) : null,
+      }));
+      return { ...prev, [iso]: [...others, ...updated] };
+    });
+
+    // Im Hintergrund speichern; nur bei Fehler den echten Serverstand zurückholen.
+    startTransition(async () => {
+      const res = await setDishOrder(dishId, iso, notes);
+      if (res.error) {
+        setFeedback({ kind: "err", text: res.error });
+        router.refresh();
+      } else {
+        setFeedback({
+          kind: "ok",
+          text:
+            notes.length > 0
+              ? `„${title}“ aktualisiert (${notes.length}×).`
+              : `„${title}“ entfernt.`,
+        });
+      }
+    });
   }
 
   function renderDish(dish: DishDTO) {
