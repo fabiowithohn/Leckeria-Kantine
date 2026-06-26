@@ -113,7 +113,6 @@ export default async function AdminBestellungenPage({
                 <thead>
                   <tr className="border-b border-sand-200 text-left text-ink-soft">
                     <th className="py-2 pr-4">Name</th>
-                    <th className="py-2 pr-4">E-Mail</th>
                     <th className="py-2 pr-4">Menü</th>
                     <th className="py-2">Sonderwunsch</th>
                   </tr>
@@ -122,7 +121,6 @@ export default async function AdminBestellungenPage({
                   {bookings.map((b) => (
                     <tr key={b.id} className="border-b border-sand-100">
                       <td className="py-2 pr-4 text-ink whitespace-nowrap">{b.user.name}</td>
-                      <td className="py-2 pr-4 text-ink-soft whitespace-nowrap">{b.user.email}</td>
                       <td className="py-2 pr-4 text-ink whitespace-nowrap">{b.dishTitleSnapshot}</td>
                       <td className="py-2 text-ink-soft">{b.note ?? "—"}</td>
                     </tr>

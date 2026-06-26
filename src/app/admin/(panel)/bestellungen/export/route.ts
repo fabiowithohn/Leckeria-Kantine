@@ -47,10 +47,10 @@ export async function GET(request: Request) {
   lines.push("");
 
   // Einzelbestellungen – nach Gericht gruppiert (alle Besteller je Menü zusammen)
-  const groups = new Map<string, { name: string; email: string; note: string | null }[]>();
+  const groups = new Map<string, { name: string; note: string | null }[]>();
   for (const b of bookings) {
     const arr = groups.get(b.dishTitleSnapshot) ?? [];
-    arr.push({ name: b.user.name, email: b.user.email, note: b.note });
+    arr.push({ name: b.user.name, note: b.note });
     groups.set(b.dishTitleSnapshot, arr);
   }
 
@@ -62,9 +62,9 @@ export async function GET(request: Request) {
       .sort((a, b) => a.name.localeCompare(b.name, "de"));
     lines.push("");
     lines.push([csvCell(title), csvCell(`${people.length} Bestellung(en)`)].join(";"));
-    lines.push(["Name", "E-Mail", "Sonderwunsch"].map(csvCell).join(";"));
+    lines.push(["Name", "Sonderwunsch"].map(csvCell).join(";"));
     for (const p of people) {
-      lines.push([csvCell(p.name), csvCell(p.email), csvCell(p.note ?? "")].join(";"));
+      lines.push([csvCell(p.name), csvCell(p.note ?? "")].join(";"));
     }
   }
 
