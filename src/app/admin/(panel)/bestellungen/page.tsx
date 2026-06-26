@@ -70,62 +70,66 @@ export default async function AdminBestellungenPage({
         )}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-2">
         {/* Zusammenfassung */}
-        <section className="rounded-2xl border border-sand-200 bg-white p-5">
+        <section className="min-w-0 rounded-2xl border border-sand-200 bg-white p-5">
           <h2 className="mb-4 text-lg font-semibold text-ink">Zusammenfassung</h2>
           {summaryRows.length === 0 ? (
             <p className="text-ink-soft">Keine Bestellungen für diesen Tag.</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-sand-200 text-left text-ink-soft">
-                  <th className="py-2">Menü</th>
-                  <th className="py-2 text-right">Anzahl</th>
-                </tr>
-              </thead>
-              <tbody>
-                {summaryRows.map(([title, count]) => (
-                  <tr key={title} className="border-b border-sand-100">
-                    <td className="py-2 text-ink">{title}</td>
-                    <td className="py-2 text-right font-semibold text-brand-700">{count}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-sand-200 text-left text-ink-soft">
+                    <th className="py-2">Menü</th>
+                    <th className="py-2 text-right">Anzahl</th>
                   </tr>
-                ))}
-                <tr>
-                  <td className="py-2 font-semibold text-ink">Gesamt</td>
-                  <td className="py-2 text-right font-semibold text-ink">{bookings.length}</td>
-                </tr>
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {summaryRows.map(([title, count]) => (
+                    <tr key={title} className="border-b border-sand-100">
+                      <td className="py-2 text-ink">{title}</td>
+                      <td className="py-2 text-right font-semibold text-brand-700">{count}</td>
+                    </tr>
+                  ))}
+                  <tr>
+                    <td className="py-2 font-semibold text-ink">Gesamt</td>
+                    <td className="py-2 text-right font-semibold text-ink">{bookings.length}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
 
         {/* Personenliste */}
-        <section className="rounded-2xl border border-sand-200 bg-white p-5">
+        <section className="min-w-0 rounded-2xl border border-sand-200 bg-white p-5">
           <h2 className="mb-4 text-lg font-semibold text-ink">Wer hat was bestellt</h2>
           {bookings.length === 0 ? (
             <p className="text-ink-soft">Keine Bestellungen für diesen Tag.</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-sand-200 text-left text-ink-soft">
-                  <th className="py-2">Name</th>
-                  <th className="py-2">E-Mail</th>
-                  <th className="py-2">Menü</th>
-                  <th className="py-2">Sonderwunsch</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bookings.map((b) => (
-                  <tr key={b.id} className="border-b border-sand-100">
-                    <td className="py-2 text-ink">{b.user.name}</td>
-                    <td className="py-2 text-ink-soft">{b.user.email}</td>
-                    <td className="py-2 text-ink">{b.dishTitleSnapshot}</td>
-                    <td className="py-2 text-ink-soft">{b.note ?? "—"}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-sand-200 text-left text-ink-soft">
+                    <th className="py-2 pr-4">Name</th>
+                    <th className="py-2 pr-4">E-Mail</th>
+                    <th className="py-2 pr-4">Menü</th>
+                    <th className="py-2">Sonderwunsch</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {bookings.map((b) => (
+                    <tr key={b.id} className="border-b border-sand-100">
+                      <td className="py-2 pr-4 text-ink whitespace-nowrap">{b.user.name}</td>
+                      <td className="py-2 pr-4 text-ink-soft whitespace-nowrap">{b.user.email}</td>
+                      <td className="py-2 pr-4 text-ink whitespace-nowrap">{b.dishTitleSnapshot}</td>
+                      <td className="py-2 text-ink-soft">{b.note ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
       </div>

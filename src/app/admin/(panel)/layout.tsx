@@ -30,7 +30,7 @@ export default async function AdminPanelLayout({
           </form>
         </div>
       </aside>
-      <main className="flex-1 p-5 sm:p-8">{children}</main>
+      <main className="min-w-0 flex-1 p-5 sm:p-8">{children}</main>
     </div>
   );
 }
