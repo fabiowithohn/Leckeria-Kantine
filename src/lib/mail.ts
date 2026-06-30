@@ -7,10 +7,12 @@ const from = process.env.EMAIL_FROM ?? "Leckeria <onboarding@resend.dev>";
 const resend = apiKey ? new Resend(apiKey) : null;
 
 // SMTP (z. B. all-inkl). Aktiv, sobald SMTP_HOST + SMTP_USER + SMTP_PASS gesetzt sind.
-const smtpHost = process.env.SMTP_HOST;
-const smtpUser = process.env.SMTP_USER;
-const smtpPass = process.env.SMTP_PASS;
-const smtpPort = Number(process.env.SMTP_PORT ?? "465");
+// .trim() schützt vor versehentlich mitkopierten Leerzeichen/Zeilenumbrüchen
+// (z. B. aus dem mehrzeiligen Value-Feld in Vercel), die sonst den Login brechen.
+const smtpHost = process.env.SMTP_HOST?.trim();
+const smtpUser = process.env.SMTP_USER?.trim();
+const smtpPass = process.env.SMTP_PASS?.trim();
+const smtpPort = Number((process.env.SMTP_PORT ?? "465").trim());
 const smtpEnabled = Boolean(smtpHost && smtpUser && smtpPass);
 
 const smtpTransport = smtpEnabled
