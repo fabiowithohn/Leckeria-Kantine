@@ -147,8 +147,10 @@ export async function requestPasswordReset(
         subject: "Passwort zurücksetzen – Kantine Grenzebach",
         html: passwordResetEmailHtml(user.firstName || user.name, link),
       });
-    } catch {
-      // bewusst still
+    } catch (err) {
+      // Antwort bleibt neutral (kein Rückschluss auf vorhandene Konten),
+      // den Fehler aber serverseitig loggen, damit er in den Vercel-Logs sichtbar ist.
+      console.error("[Passwort-Reset] Mailversand fehlgeschlagen:", err);
     }
   }
   return { ok: true };

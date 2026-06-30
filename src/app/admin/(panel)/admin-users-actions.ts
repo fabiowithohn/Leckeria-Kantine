@@ -68,8 +68,9 @@ export async function setUserApproval(
           `${appUrl()}/grenzebach/login`,
         ),
       });
-    } catch {
+    } catch (err) {
       // Mailversand evtl. nicht konfiguriert – Freischaltung gilt trotzdem.
+      console.error("[Freischaltung] Mailversand fehlgeschlagen:", err);
     }
   }
   revalidatePath("/admin/benutzer");
@@ -96,8 +97,9 @@ export async function adminResetUserPassword(
       subject: "Passwort zurücksetzen – Kantine Grenzebach",
       html: passwordResetEmailHtml(user.firstName || user.name, link),
     });
-  } catch {
+  } catch (err) {
     // Mailversand evtl. nicht konfiguriert – Link wird dem Admin trotzdem angezeigt.
+    console.error("[Admin-Passwort-Reset] Mailversand fehlgeschlagen:", err);
   }
   revalidatePath("/admin/benutzer");
   return { ok: true, resetLink: link };
