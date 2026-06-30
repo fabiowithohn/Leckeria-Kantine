@@ -30,17 +30,40 @@ export function UsersManager({ users }: { users: UserRow[] }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [resetInfo, setResetInfo] = useState<{ id: string; link: string } | null>(null);
+  const [resetInfo, setResetInfo] = useState<{
+    id: string;
+    link: string;
+    mailSent?: boolean;
+    mailError?: string;
+  } | null>(null);
 
-  function run(fn: () => Promise<{ ok?: boolean; error?: string; resetLink?: string }>, opts?: { userId?: string }) {
+  function run(
+    fn: () => Promise<{
+      ok?: boolean;
+      error?: string;
+      resetLink?: string;
+      mailSent?: boolean;
+      mailError?: string;
+    }>,
+    opts?: { userId?: string },
+  ) {
     setFeedback(null);
     startTransition(async () => {
       const res = await fn();
       if (res.error) {
         setFeedback(res.error);
       } else if (res.resetLink && opts?.userId) {
-        setResetInfo({ id: opts.userId, link: res.resetLink });
-        setFeedback("Reset-Link erstellt und (falls Mailversand aktiv) per E-Mail verschickt.");
+        setResetInfo({
+          id: opts.userId,
+          link: res.resetLink,
+          mailSent: res.mailSent,
+          mailError: res.mailError,
+        });
+        setFeedback(
+          res.mailSent
+            ? "Reset-Link erstellt und per E-Mail verschickt."
+            : "Reset-Link erstellt – E-Mail-Versand fehlgeschlagen (Details unten).",
+        );
       } else {
         setFeedback("Gespeichert.");
       }
@@ -198,6 +221,17 @@ export function UsersManager({ users }: { users: UserRow[] }) {
 
               {resetInfo?.id === u.id && (
                 <div className="mt-3 rounded-xl border border-herb-500/30 bg-herb-500/10 p-3 text-sm">
+                  {resetInfo.mailSent ? (
+                    <p className="mb-2 rounded-lg bg-herb-500/15 px-3 py-2 text-xs font-semibold text-herb-600">
+                      ✓ E-Mail erfolgreich an {u.email} gesendet.
+                    </p>
+                  ) : (
+                    <p className="mb-2 rounded-lg bg-brand-100 px-3 py-2 text-xs font-semibold text-brand-700">
+                      ⚠ E-Mail-Versand fehlgeschlagen
+                      {resetInfo.mailError ? `: ${resetInfo.mailError}` : ""}. Bitte den
+                      Link unten manuell weiterleiten.
+                    </p>
+                  )}
                   <p className="font-semibold text-ink">Reset-Link (1 Stunde gültig):</p>
                   <p className="mt-1 break-all text-ink-soft">{resetInfo.link}</p>
                   <div className="mt-2 flex gap-2">

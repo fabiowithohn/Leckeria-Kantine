@@ -10,7 +10,13 @@ function appUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 }
 
-export type UserActionResult = { ok?: boolean; error?: string; resetLink?: string };
+export type UserActionResult = {
+  ok?: boolean;
+  error?: string;
+  resetLink?: string;
+  mailSent?: boolean;
+  mailError?: string;
+};
 
 /** Vor- und Nachname eines Mitarbeiters ändern (auf dessen Anfrage per Mail). */
 export async function updateUserName(
@@ -91,16 +97,20 @@ export async function adminResetUserPassword(
   if (!user) return { error: "Mitarbeiter nicht gefunden." };
 
   const link = await createPasswordResetLink(user.email);
+  let mailSent = false;
+  let mailError: string | undefined;
   try {
     await sendMail({
       to: user.email,
       subject: "Passwort zurücksetzen – Kantine Grenzebach",
       html: passwordResetEmailHtml(user.firstName || user.name, link),
     });
+    mailSent = true;
   } catch (err) {
     // Mailversand evtl. nicht konfiguriert – Link wird dem Admin trotzdem angezeigt.
+    mailError = err instanceof Error ? err.message : String(err);
     console.error("[Admin-Passwort-Reset] Mailversand fehlgeschlagen:", err);
   }
   revalidatePath("/admin/benutzer");
-  return { ok: true, resetLink: link };
+  return { ok: true, resetLink: link, mailSent, mailError };
 }
