@@ -15,14 +15,29 @@ export default async function AdminBestellungenPage({
 
   const bookings = await prisma.booking.findMany({
     where: { date: dbDateFromISO(selected) },
-    include: { user: true },
+    include: { user: true, dish: { select: { description: true } } },
     orderBy: [{ dishTitleSnapshot: "asc" }, { user: { name: "asc" } }],
   });
 
-  // Zusammenfassung: Menü → Anzahl
+  // Vollständiger Menüname inkl. Beschreibung, damit gleichnamige Varianten
+  // (z. B. "Gemischter Salatteller – mit Thunfisch") unterscheidbar sind.
+  function menuLabel(b: (typeof bookings)[number]): string {
+    const desc = b.dish?.description?.trim();
+    return desc ? `${b.dishTitleSnapshot} – ${desc}` : b.dishTitleSnapshot;
+  }
+
+  // Bestellungen nach vollständigem Menünamen + Name gruppieren/sortieren
+  const rows = [...bookings].sort(
+    (a, b) =>
+      menuLabel(a).localeCompare(menuLabel(b), "de") ||
+      a.user.name.localeCompare(b.user.name, "de"),
+  );
+
+  // Zusammenfassung: Menü (inkl. Beschreibung) → Anzahl
   const summary = new Map<string, number>();
   for (const b of bookings) {
-    summary.set(b.dishTitleSnapshot, (summary.get(b.dishTitleSnapshot) ?? 0) + 1);
+    const label = menuLabel(b);
+    summary.set(label, (summary.get(label) ?? 0) + 1);
   }
   const summaryRows = [...summary.entries()].sort((a, b) => b[1] - a[1]);
 
@@ -118,10 +133,10 @@ export default async function AdminBestellungenPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {bookings.map((b) => (
+                  {rows.map((b) => (
                     <tr key={b.id} className="border-b border-sand-100">
                       <td className="py-2 pr-4 text-ink whitespace-nowrap">{b.user.name}</td>
-                      <td className="py-2 pr-4 text-ink whitespace-nowrap">{b.dishTitleSnapshot}</td>
+                      <td className="py-2 pr-4 text-ink whitespace-nowrap">{menuLabel(b)}</td>
                       <td className="py-2 text-ink-soft">{b.note ?? "—"}</td>
                     </tr>
                   ))}

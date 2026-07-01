@@ -25,14 +25,22 @@ export async function GET(request: Request) {
 
   const bookings = await prisma.booking.findMany({
     where: { date: dbDateFromISO(date) },
-    include: { user: true },
+    include: { user: true, dish: { select: { description: true } } },
     orderBy: [{ dishTitleSnapshot: "asc" }, { user: { name: "asc" } }],
   });
+
+  // Vollständiger Menüname inkl. Beschreibung, damit gleichnamige Varianten
+  // (z. B. "Gemischter Salatteller – mit Thunfisch") unterscheidbar sind.
+  const menuLabel = (b: (typeof bookings)[number]): string => {
+    const desc = b.dish?.description?.trim();
+    return desc ? `${b.dishTitleSnapshot} – ${desc}` : b.dishTitleSnapshot;
+  };
 
   // Zusammenfassung
   const summary = new Map<string, number>();
   for (const b of bookings) {
-    summary.set(b.dishTitleSnapshot, (summary.get(b.dishTitleSnapshot) ?? 0) + 1);
+    const label = menuLabel(b);
+    summary.set(label, (summary.get(label) ?? 0) + 1);
   }
 
   const lines: string[] = [];
@@ -46,12 +54,13 @@ export async function GET(request: Request) {
   lines.push([csvCell("Gesamt"), String(bookings.length)].join(";"));
   lines.push("");
 
-  // Einzelbestellungen – nach Gericht gruppiert (alle Besteller je Menü zusammen)
+  // Einzelbestellungen – nach Gericht (inkl. Beschreibung) gruppiert
   const groups = new Map<string, { name: string; note: string | null }[]>();
   for (const b of bookings) {
-    const arr = groups.get(b.dishTitleSnapshot) ?? [];
+    const label = menuLabel(b);
+    const arr = groups.get(label) ?? [];
     arr.push({ name: b.user.name, note: b.note });
-    groups.set(b.dishTitleSnapshot, arr);
+    groups.set(label, arr);
   }
 
   lines.push("Bestellungen nach Gericht");
