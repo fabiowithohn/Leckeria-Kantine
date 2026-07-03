@@ -44,9 +44,27 @@ function verify(token: string | undefined): boolean {
 }
 
 export function checkAdminCredentials(user: string, password: string): boolean {
-  const expectedUser = process.env.ADMIN_USER ?? "admin";
-  const expectedPass = process.env.ADMIN_PASSWORD ?? "";
-  return user === expectedUser && password === expectedPass && expectedPass !== "";
+  if (!password) return false;
+
+  // Primärer Admin (ADMIN_USER / ADMIN_PASSWORD)
+  const primaryUser = process.env.ADMIN_USER ?? "admin";
+  const primaryPass = process.env.ADMIN_PASSWORD ?? "";
+  if (primaryPass && user === primaryUser && password === primaryPass) {
+    return true;
+  }
+
+  // Weitere Backend-Zugänge über ADMIN_LOGINS = "user1:pass1,user2:pass2"
+  // (Benutzername und Passwort dürfen kein ":" oder "," enthalten.)
+  const extra = process.env.ADMIN_LOGINS ?? "";
+  for (const pair of extra.split(",")) {
+    const sep = pair.indexOf(":");
+    if (sep < 0) continue;
+    const u = pair.slice(0, sep).trim();
+    const p = pair.slice(sep + 1).trim();
+    if (u && p && user === u && password === p) return true;
+  }
+
+  return false;
 }
 
 export async function setAdminSession(): Promise<void> {
