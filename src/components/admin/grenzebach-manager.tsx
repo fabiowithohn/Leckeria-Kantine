@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { SortableList, SortableRow } from "./sortable-list";
+import { Pagination, PageRange, usePagination } from "./pagination";
 import { ALLERGENS, ADDITIVES } from "@/lib/allergens";
 import { MarkIcon } from "@/components/mark-icon";
 import {
@@ -39,6 +40,9 @@ export type SlotItem = {
 };
 
 type SlotDef = { key: string; label: string };
+
+/** Ergebnis einer Aktion; `message` ist eine optionale Erfolgsmeldung. */
+type ActionRes = { ok?: boolean; error?: string; message?: string };
 
 type Props = {
   library: LibDish[];
@@ -143,10 +147,10 @@ export function GrenzebachManager({ library, slots, slotItems }: Props) {
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<string | null>(null);
 
-  function act(fn: () => Promise<{ ok?: boolean; error?: string }>) {
+  function act(fn: () => Promise<ActionRes>) {
     startTransition(async () => {
       const res = await fn();
-      setFeedback(res.error ?? null);
+      setFeedback(res.error ?? res.message ?? null);
       router.refresh();
     });
   }
@@ -201,11 +205,19 @@ function LibraryTab({
   onDone,
 }: {
   library: LibDish[];
-  act: (fn: () => Promise<{ ok?: boolean; error?: string }>) => void;
+  act: (fn: () => Promise<ActionRes>) => void;
   pending: boolean;
   onDone: () => void;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
+  const paging = usePagination(library);
+  const listTop = useRef<HTMLDivElement>(null);
+
+  function goToPage(p: number) {
+    setEditingId(null);
+    paging.setPage(p);
+    listTop.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   return (
     <div>
@@ -215,13 +227,56 @@ function LibraryTab({
         erneut anzulegen.
       </p>
 
+      {/* Neues Gericht in die Bibliothek */}
+      <form
+        action={(fd) => {
+          const title = String(fd.get("title") ?? "").trim();
+          act(async () => {
+            const res = await createLibraryDish({}, fd);
+            if (res.ok && !res.error) {
+              (document.getElementById("add-lib-dish") as HTMLFormElement)?.reset();
+              onDone();
+              return { ...res, message: `„${title}“ wurde zur Bibliothek hinzugefügt und alphabetisch einsortiert.` };
+            }
+            return res;
+          });
+        }}
+        id="add-lib-dish"
+        className="mb-8 rounded-2xl border border-dashed border-brand-200 bg-brand-50/40 p-4"
+      >
+        <p className="mb-3 text-sm font-bold text-ink">Neues Gericht zur Bibliothek hinzufügen</p>
+        <div className="grid gap-2">
+          <input name="title" placeholder="Titel *" required className={input} />
+          <input name="description" placeholder="Beschreibung" className={input} />
+          <AllergenPicker />
+          <AdditivePicker />
+          <label className="flex items-center gap-2 rounded-lg border border-sand-200 bg-white px-3 py-2 text-sm text-ink">
+            <input type="checkbox" name="allowNote" className="h-4 w-4 accent-brand-500" />
+            Sonderwünsche (Freitext) bei der Bestellung erlauben
+          </label>
+          <div>
+            <label className="mb-1 block text-xs font-semibold text-ink-soft">Vorschaubild (optional)</label>
+            <input type="file" name="image" accept="image/*" className="block w-full text-sm text-ink-soft file:mr-3 file:rounded-full file:border-0 file:bg-brand-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-brand-700" />
+          </div>
+        </div>
+        <button disabled={pending} className="mt-3 rounded-full bg-brand-500 px-5 py-2 text-sm font-bold text-white shadow-warm disabled:opacity-60">
+          {pending ? "Speichern …" : "Zur Bibliothek hinzufügen"}
+        </button>
+      </form>
+
+      {/* Vorhandene Gerichte (alphabetisch, seitenweise) */}
+      <div ref={listTop} className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 scroll-mt-6">
+        <h2 className="text-base font-bold text-ink">Vorhandene Gerichte</h2>
+        <PageRange from={paging.from} to={paging.to} total={paging.total} noun="Gerichten" />
+      </div>
+
       {library.length === 0 ? (
         <p className="mb-4 rounded-xl border border-dashed border-sand-300 p-6 text-center text-ink-soft">
           Die Bibliothek ist noch leer.
         </p>
       ) : (
         <div className="space-y-2">
-          {library.map((dish) =>
+          {paging.pageItems.map((dish) =>
             editingId === dish.id ? (
               <div key={dish.id} className="rounded-2xl border border-sand-200 bg-white p-4">
                 <form
@@ -309,40 +364,7 @@ function LibraryTab({
         </div>
       )}
 
-      {/* Neues Gericht in die Bibliothek */}
-      <form
-        action={(fd) => {
-          act(async () => {
-            const res = await createLibraryDish({}, fd);
-            if (res.ok && !res.error) {
-              (document.getElementById("add-lib-dish") as HTMLFormElement)?.reset();
-              onDone();
-            }
-            return res;
-          });
-        }}
-        id="add-lib-dish"
-        className="mt-6 rounded-2xl border border-dashed border-brand-200 bg-brand-50/40 p-4"
-      >
-        <p className="mb-3 text-sm font-bold text-ink">Neues Gericht zur Bibliothek hinzufügen</p>
-        <div className="grid gap-2">
-          <input name="title" placeholder="Titel *" required className={input} />
-          <input name="description" placeholder="Beschreibung" className={input} />
-          <AllergenPicker />
-          <AdditivePicker />
-          <label className="flex items-center gap-2 rounded-lg border border-sand-200 bg-white px-3 py-2 text-sm text-ink">
-            <input type="checkbox" name="allowNote" className="h-4 w-4 accent-brand-500" />
-            Sonderwünsche (Freitext) bei der Bestellung erlauben
-          </label>
-          <div>
-            <label className="mb-1 block text-xs font-semibold text-ink-soft">Vorschaubild (optional)</label>
-            <input type="file" name="image" accept="image/*" className="block w-full text-sm text-ink-soft file:mr-3 file:rounded-full file:border-0 file:bg-brand-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-brand-700" />
-          </div>
-        </div>
-        <button disabled={pending} className="mt-3 rounded-full bg-brand-500 px-5 py-2 text-sm font-bold text-white shadow-warm disabled:opacity-60">
-          {pending ? "Speichern …" : "Zur Bibliothek hinzufügen"}
-        </button>
-      </form>
+      <Pagination page={paging.page} pageCount={paging.pageCount} total={paging.total} noun="Gerichte" onChange={goToPage} label="Seiten der Bibliothek" />
     </div>
   );
 }
@@ -360,7 +382,7 @@ function SlotTab({
   slotLabel: string;
   items: SlotItem[];
   library: LibDish[];
-  act: (fn: () => Promise<{ ok?: boolean; error?: string }>) => void;
+  act: (fn: () => Promise<ActionRes>) => void;
   pending: boolean;
 }) {
   const router = useRouter();
