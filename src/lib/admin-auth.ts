@@ -3,9 +3,17 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 // Eigenständige Admin-Session (getrennt vom Mitarbeiter-Login).
-// Cookie enthält ein HMAC-signiertes Ablaufdatum.
+// Cookie enthält ein HMAC-signiertes Ablaufdatum plus Rolle und Benutzername.
 const COOKIE_NAME = "leckeria_admin";
 const MAX_AGE_SECONDS = 60 * 60 * 12; // 12 Stunden
+
+/**
+ * Rollen im Backend:
+ * - "admin":   alle bisherigen Bereiche (Gerichte, Mitarbeitende, Bestellungen, …)
+ * - "planner": wie admin, zusätzlich der Bereich „Planerstellung“
+ */
+export type AdminRole = "admin" | "planner";
+export type AdminSession = { user: string; role: AdminRole };
 
 function secret(): string {
   return process.env.AUTH_SECRET ?? "dev-secret";
@@ -19,10 +27,11 @@ function sign(payload: string): string {
   return `${payload}.${sig}`;
 }
 
-function verify(token: string | undefined): boolean {
-  if (!token) return false;
+/** Prüft Signatur und Ablauf; liefert die Session oder null. */
+function verify(token: string | undefined): AdminSession | null {
+  if (!token) return null;
   const idx = token.lastIndexOf(".");
-  if (idx < 0) return false;
+  if (idx < 0) return null;
   const payload = token.slice(0, idx);
   const sig = token.slice(idx + 1);
   const expected = crypto
@@ -34,43 +43,68 @@ function verify(token: string | undefined): boolean {
       sig.length !== expected.length ||
       !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))
     ) {
-      return false;
+      return null;
     }
   } catch {
-    return false;
+    return null;
   }
-  const exp = Number(payload);
-  return Number.isFinite(exp) && Date.now() < exp;
+  // Payload: "<ablauf-ms>|<rolle>|<benutzer>" (ältere Cookies ohne Rolle gelten als admin)
+  const [expRaw, roleRaw, ...userParts] = payload.split("|");
+  const exp = Number(expRaw);
+  if (!Number.isFinite(exp) || Date.now() >= exp) return null;
+  const role: AdminRole = roleRaw === "planner" ? "planner" : "admin";
+  return { user: userParts.join("|") || "admin", role };
 }
 
-export function checkAdminCredentials(user: string, password: string): boolean {
-  if (!password) return false;
-
-  // Primärer Admin (ADMIN_USER / ADMIN_PASSWORD)
-  const primaryUser = process.env.ADMIN_USER ?? "admin";
-  const primaryPass = process.env.ADMIN_PASSWORD ?? "";
-  if (primaryPass && user === primaryUser && password === primaryPass) {
-    return true;
-  }
-
-  // Weitere Backend-Zugänge über ADMIN_LOGINS = "user1:pass1,user2:pass2"
-  // (Benutzername und Passwort dürfen kein ":" oder "," enthalten.)
-  const extra = process.env.ADMIN_LOGINS ?? "";
-  for (const pair of extra.split(",")) {
+/** Zerlegt "user1:pass1,user2:pass2" in Paare (Benutzer/Passwort ohne ":" oder ","). */
+function parseLogins(raw: string | undefined): { user: string; pass: string }[] {
+  const out: { user: string; pass: string }[] = [];
+  for (const pair of (raw ?? "").split(",")) {
     const sep = pair.indexOf(":");
     if (sep < 0) continue;
-    const u = pair.slice(0, sep).trim();
-    const p = pair.slice(sep + 1).trim();
-    if (u && p && user === u && password === p) return true;
+    const user = pair.slice(0, sep).trim();
+    const pass = pair.slice(sep + 1).trim();
+    if (user && pass) out.push({ user, pass });
   }
-
-  return false;
+  return out;
 }
 
-export async function setAdminSession(): Promise<void> {
+function safeEqual(a: string, b: string): boolean {
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ba.length === bb.length && crypto.timingSafeEqual(ba, bb);
+}
+
+/**
+ * Prüft Zugangsdaten und liefert die Session (Benutzer + Rolle) oder null.
+ *
+ * - ADMIN_USER / ADMIN_PASSWORD: primärer Admin
+ * - ADMIN_LOGINS:   weitere Admin-Zugänge, Format "user:pass,user2:pass2"
+ * - PLANNER_LOGINS: Zugänge mit Rolle "planner" (sehen zusätzlich die Planerstellung),
+ *                   gleiches Format – z. B. "bekki:…"
+ */
+export function checkAdminCredentials(user: string, password: string): AdminSession | null {
+  if (!password) return null;
+
+  const primaryUser = process.env.ADMIN_USER ?? "admin";
+  const primaryPass = process.env.ADMIN_PASSWORD ?? "";
+  if (primaryPass && user === primaryUser && safeEqual(password, primaryPass)) {
+    return { user, role: "admin" };
+  }
+
+  for (const l of parseLogins(process.env.PLANNER_LOGINS)) {
+    if (user === l.user && safeEqual(password, l.pass)) return { user, role: "planner" };
+  }
+  for (const l of parseLogins(process.env.ADMIN_LOGINS)) {
+    if (user === l.user && safeEqual(password, l.pass)) return { user, role: "admin" };
+  }
+  return null;
+}
+
+export async function setAdminSession(session: AdminSession): Promise<void> {
   const exp = Date.now() + MAX_AGE_SECONDS * 1000;
   const store = await cookies();
-  store.set(COOKIE_NAME, sign(String(exp)), {
+  store.set(COOKIE_NAME, sign(`${exp}|${session.role}|${session.user}`), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -84,9 +118,19 @@ export async function clearAdminSession(): Promise<void> {
   store.delete(COOKIE_NAME);
 }
 
-export async function isAdmin(): Promise<boolean> {
+/** Aktuelle Backend-Session (oder null, wenn nicht angemeldet / abgelaufen). */
+export async function getAdminSession(): Promise<AdminSession | null> {
   const store = await cookies();
   return verify(store.get(COOKIE_NAME)?.value);
+}
+
+export async function isAdmin(): Promise<boolean> {
+  return (await getAdminSession()) != null;
+}
+
+/** Nur die Rolle "planner" darf die Planerstellung sehen und nutzen. */
+export async function isPlanner(): Promise<boolean> {
+  return (await getAdminSession())?.role === "planner";
 }
 
 /**
@@ -95,7 +139,16 @@ export async function isAdmin(): Promise<boolean> {
  * Andernfalls gleitende Verlängerung (Sitzung wird zurückgesetzt).
  * NICHT im Render einer Server-Component aufrufen (setzt ein Cookie).
  */
-export async function requireAdmin(): Promise<void> {
-  if (!(await isAdmin())) redirect("/admin/login?expired=1");
-  await setAdminSession();
+export async function requireAdmin(): Promise<AdminSession> {
+  const session = await getAdminSession();
+  if (!session) redirect("/admin/login?expired=1");
+  await setAdminSession(session);
+  return session;
+}
+
+/** Wie requireAdmin, zusätzlich muss die Rolle "planner" vorliegen. */
+export async function requirePlanner(): Promise<AdminSession> {
+  const session = await requireAdmin();
+  if (session.role !== "planner") redirect("/admin");
+  return session;
 }

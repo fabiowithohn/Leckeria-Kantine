@@ -141,3 +141,31 @@ model NewsPost {
 
   @@index([published, publishedAt])
 }
+
+/// Speiseplan aus der Planerstellung (Rolle "planner"): eine Kantine, eine Kalenderwoche.
+model MealPlan {
+  id          String   @id @default(cuid())
+  canteen     String // z. B. "Asteel Flash", "Grenzebach", "LIBRI"
+  year        Int // ISO-Jahr der Kalenderwoche
+  week        Int // ISO-Kalenderwoche (1–53)
+  data        Json // Inhalt (Tage, Menüs, Fußzeile) – siehe src/lib/meal-plan.ts
+  exportCount Int      @default(0) // fortlaufende Nummer für Dateinamen beim Download
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  @@unique([canteen, year, week])
+  @@index([year, week])
+}
+
+/// Gerichte-Merker der Planerstellung: einmal eingetippte Gerichte werden beim
+/// nächsten Mal (inkl. Kennzeichnungen und Beschreibung) vorgeschlagen.
+model PlanDish {
+  id          String   @id @default(cuid())
+  key         String   @unique // normalisierter Titel (klein, ohne Mehrfach-Leerzeichen)
+  title       String
+  codes       String[] @default([]) // Allergene (1–14) und Zusatzstoffe (a–m) zum Titel
+  category    String? // rind | huhn | schwein | fisch | veg
+  description String   @default("")
+  uses        Int      @default(1)
+  updatedAt   DateTime @default(now()) @updatedAt
+}

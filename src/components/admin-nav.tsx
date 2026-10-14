@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-type NavLink = { href: string; label: string; exact?: boolean };
+type NavLink = { href: string; label: string; exact?: boolean; plannerOnly?: boolean };
 type NavGroup = { group: string; links: NavLink[] };
 type NavItem = NavLink | NavGroup;
 
@@ -19,10 +19,13 @@ const ITEMS: NavItem[] = [
   },
   { href: "/admin/speisekarte", label: "Asteel Flash" },
   { href: "/admin/aktuelles", label: "Aktuelles" },
+  // Nur für die Rolle „planner“ sichtbar (Server prüft zusätzlich)
+  { href: "/admin/planerstellung", label: "Planerstellung", plannerOnly: true },
 ];
 
-export function AdminNav() {
+export function AdminNav({ planner = false }: { planner?: boolean }) {
   const pathname = usePathname();
+  const items = ITEMS.filter((item) => "group" in item || !item.plannerOnly || planner);
   const active = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname.startsWith(href);
 
@@ -36,7 +39,7 @@ export function AdminNav() {
 
   return (
     <nav className="space-y-1">
-      {ITEMS.map((item) =>
+      {items.map((item) =>
         "group" in item ? (
           <div key={item.group} className="pt-2">
             <p className="px-4 pb-1 text-xs font-bold uppercase tracking-wider text-sand-200/70">

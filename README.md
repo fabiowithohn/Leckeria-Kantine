@@ -57,6 +57,30 @@ npm run dev            # http://localhost:3000
 
 ---
 
+## Planerstellung (Rolle „planner“)
+
+Der Bereich **Planerstellung** (`/admin/planerstellung`) ist nur für Zugänge mit der
+Rolle „planner“ sichtbar – für `admin` existiert die Seite nicht (404). Dort werden
+die wöchentlichen Speisepläne (Asteel Flash, Grenzebach, LIBRI, …) direkt im Backend
+geschrieben, als PNG/JPG heruntergeladen oder mit einem Klick als aktueller
+Wochenplan auf der Website veröffentlicht.
+
+- Zugänge: `PLANNER_LOGINS="bekki:<passwort>"` (Format wie `ADMIN_LOGINS`).
+  Lokal steht ein Platzhalter in `.env`; **in Vercel muss die Variable gesetzt und
+  danach neu deployt werden.**
+- Dateiname beim Download: `Speiseplan_KW42_2026_Asteel-Flash_v3.png` – die
+  Versionsnummer zählt pro Plan mit jedem Download hoch, damit nichts überschrieben wird.
+- Das Bild wird serverseitig gerendert (`next/og`, `src/lib/plan-render.tsx`) im
+  Design der Website (Orange-Verlaufsbänder, weiße Karte, Pills, Nunito / Nunito Sans).
+  Assets: `public/plan/background.jpg` (KI-generiertes Food-Flatlay, 1924 × 1360 px,
+  Seitenverhältnis 1600:1131), `public/plan/logo-white.png` (weißes Logo),
+  Schriften in `src/plan-assets/fonts/`. Zum Tauschen des Hintergrunds einfach die
+  JPG im selben Seitenverhältnis ersetzen.
+- Einmal eingetippte Gerichte werden mit Kennzeichnung und Beschreibung gemerkt und
+  beim nächsten Mal vorgeschlagen (Tabelle `PlanDish`).
+- Neue Tabellen `MealPlan` und `PlanDish`: nach dem Deploy
+  `npx prisma migrate deploy` gegen die Produktions-Datenbank ausführen.
+
 ## Umgebungsvariablen
 
 Siehe [`.env.example`](./.env.example). Lokal liegt eine vorausgefüllte `.env` bereit.

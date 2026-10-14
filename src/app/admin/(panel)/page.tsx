@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { dbDateFromISO, todayBerlinISO, weekdays } from "@/lib/time";
+import { isPlanner } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Übersicht – Verwaltung" };
@@ -32,6 +33,9 @@ export default async function AdminDashboard() {
     { href: "/admin/speisekarte", title: "Asteel Flash", text: "Wöchentlichen Speiseplan als Bild hochladen." },
     { href: "/admin/bestellungen", title: "Bestellungen", text: "Auswertung & CSV-Export der Kantinenbestellungen." },
     { href: "/admin/aktuelles", title: "Aktuelles", text: "Neuigkeiten auf der Website veröffentlichen." },
+    ...((await isPlanner())
+      ? [{ href: "/admin/planerstellung", title: "Planerstellung", text: "Speisepläne schreiben, als Bild herunterladen oder direkt veröffentlichen." }]
+      : []),
   ];
 
   return (

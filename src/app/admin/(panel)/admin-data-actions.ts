@@ -1,9 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { isAdmin, setAdminSession } from "@/lib/admin-auth";
+import { requireAdmin } from "@/lib/admin-auth";
 import { parsePriceToCents } from "@/lib/format";
 import { processDishImage } from "@/lib/image";
 import { ASTEEL_FLASH_PLAN_ID, GRENZEBACH_PLAN_ID } from "@/lib/weekly-plan";
@@ -30,12 +29,9 @@ function parseAdditives(formData: FormData): string[] {
 }
 
 async function ensureAdmin() {
-  // Abgelaufene/fehlende Sitzung → freundliche Weiterleitung zum Login
-  // (statt einer rohen Runtime-Error-Box).
-  if (!(await isAdmin())) redirect("/admin/login?expired=1");
-  // Gleitende Verlängerung: jede Admin-Aktion setzt die 12-Stunden-Frist zurück,
-  // sodass man nur nach echter Inaktivität ausgeloggt wird.
-  await setAdminSession();
+  // Abgelaufene/fehlende Sitzung → freundliche Weiterleitung zum Login.
+  // Gleitende Verlängerung: jede Admin-Aktion setzt die 12-Stunden-Frist zurück.
+  await requireAdmin();
 }
 
 function revalidateAll() {

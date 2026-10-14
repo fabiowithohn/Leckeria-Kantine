@@ -15,10 +15,11 @@ export async function adminLogin(
 ): Promise<AdminLoginState> {
   const user = String(formData.get("user") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  if (!checkAdminCredentials(user, password)) {
+  const session = checkAdminCredentials(user, password);
+  if (!session) {
     return { error: "Benutzername oder Passwort ist falsch." };
   }
-  await setAdminSession();
+  await setAdminSession(session);
   redirect("/admin");
 }
 
