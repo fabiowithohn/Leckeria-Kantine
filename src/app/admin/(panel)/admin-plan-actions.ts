@@ -9,6 +9,7 @@ import {
   CANTEENS,
   dishKey,
   emptyPlan,
+  importDays,
   isoWeekOf,
   normalizePlan,
   sortCodes,
@@ -158,6 +159,29 @@ export async function duplicatePlan(input: {
     if (isUniqueError(err)) return { error: `Für ${canteen} gibt es in KW ${week}/${year} schon einen Plan.` };
     throw err;
   }
+}
+
+/**
+ * Gerichte eines anderen Plans in den aktuellen übernehmen (optional um Tage
+ * verschoben). Liefert die zusammengeführten Daten zurück; gespeichert wird
+ * anschließend über das Autosave des Editors.
+ */
+export async function importFromPlan(input: {
+  targetId: string;
+  sourceId: string;
+  shift: number;
+  overwrite: boolean;
+}): Promise<PlanActionResult & { data?: PlanData }> {
+  await requirePlanner();
+  const [target, source] = await Promise.all([
+    prisma.mealPlan.findUnique({ where: { id: input.targetId } }),
+    prisma.mealPlan.findUnique({ where: { id: input.sourceId } }),
+  ]);
+  if (!target || !source) return { error: "Plan nicht gefunden." };
+  const shift = Math.max(-4, Math.min(4, Math.trunc(Number(input.shift) || 0)));
+  const t = normalizePlan(target.data, emptyPlan(target.canteen, target.year, target.week));
+  const sPlan = normalizePlan(source.data, emptyPlan(source.canteen, source.year, source.week));
+  return { ok: true, data: importDays(t, sPlan, shift, input.overwrite === true) };
 }
 
 export async function deletePlan(id: string): Promise<PlanActionResult> {

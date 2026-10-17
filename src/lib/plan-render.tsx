@@ -399,6 +399,7 @@ export function PlanImage({ plan, kw, assets, scale: s }: { plan: PlanData; kw?:
           }
           if (!menu || !menu.title.trim()) return null;
           const codes = sortCodes(menu.codes);
+          const titleLines = menu.title.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length > 0);
           const lines = menu.description.split(/\r?\n/).filter((l) => l.trim().length > 0);
           return (
             <div
@@ -412,9 +413,15 @@ export function PlanImage({ plan, kw, assets, scale: s }: { plan: PlanData; kw?:
                 flexDirection: "column",
               }}
             >
+              {/* Titel: manuelle Umbrüche (Enter) werden übernommen, Kennzeichnung und Symbol folgen der letzten Zeile */}
+              {titleLines.slice(0, -1).map((line, k) => (
+                <div key={k} style={{ fontFamily: "Nunito", fontWeight: 800, fontSize: px(21.5), letterSpacing: px(-0.3), lineHeight: 1.2, color: INK }}>
+                  {line}
+                </div>
+              ))}
               <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", marginBottom: px(3) }}>
                 <div style={{ fontFamily: "Nunito", fontWeight: 800, fontSize: px(21.5), letterSpacing: px(-0.3), lineHeight: 1.2, color: INK }}>
-                  {menu.title}
+                  {titleLines[titleLines.length - 1]}
                 </div>
                 {codes.length > 0 && <Codes value={`*${codes.join(",")}`} s={s} size={12.5} />}
                 {menu.category && (

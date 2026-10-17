@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   deletePlan,
   duplicatePlan,
+  importFromPlan,
   publishPlan,
   savePlan,
 } from "@/app/admin/(panel)/admin-plan-actions";
@@ -16,6 +17,8 @@ import {
   isoWeekOf,
   planFileName,
   sortCodes,
+  swapDays,
+  swapMenu,
   type Category,
   type PlanData,
   type PlanMenu,
@@ -40,6 +43,8 @@ export type DishSuggestion = {
   description: string;
 };
 
+export type PlanOption = { id: string; label: string };
+
 type SaveStatus = "saved" | "dirty" | "saving" | "error";
 
 const input =
@@ -52,11 +57,13 @@ export function PlanEditor({
   initial,
   suggestions,
   canteens,
+  otherPlans,
 }: {
   meta: PlanMeta;
   initial: PlanData;
   suggestions: DishSuggestion[];
   canteens: string[];
+  otherPlans: PlanOption[];
 }) {
   const router = useRouter();
   const [plan, setPlan] = useState<PlanData>(initial);
@@ -193,13 +200,61 @@ export function PlanEditor({
   }, [plan, effectiveCanteen, week]);
 
   /* ---------- Download / Veröffentlichen / Kopieren ---------- */
+  const [downloading, setDownloading] = useState<"png" | "jpg" | null>(null);
   async function download(format: "png" | "jpg") {
     setNotice(null);
+    setError(null);
     if (status !== "saved" && !(await flushSave())) return;
-    const next = exportCount + 1;
-    setExportCount(next);
-    window.location.href = `/api/plan-image?id=${encodeURIComponent(meta.id)}&format=${format}`;
-    setNotice(`Download gestartet: ${planFileName({ canteen: effectiveCanteen, year, week }, next, format)}`);
+    setDownloading(format);
+    try {
+      const res = await fetch(`/api/plan-image?id=${encodeURIComponent(meta.id)}&format=${format}`);
+      if (!res.ok) throw new Error(`Download fehlgeschlagen (Status ${res.status}). Bitte nochmal versuchen.`);
+      const blob = await res.blob();
+      const next = exportCount + 1;
+      const name = planFileName({ canteen: effectiveCanteen, year, week }, next, format);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      setExportCount(next);
+      setNotice(`Heruntergeladen: ${name}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setDownloading(null);
+    }
+  }
+
+  /* ---------- Gerichte verschieben / übernehmen ---------- */
+  function moveDay(d: number, dir: -1 | 1) {
+    updatePlan((p) => swapDays(p, d, d + dir));
+  }
+  function moveMenu(d: number, m: number, dir: -1 | 1) {
+    updatePlan((p) => swapMenu(p, d, d + dir, m));
+  }
+
+  const [importSource, setImportSource] = useState(otherPlans[0]?.id ?? "");
+  const [importShift, setImportShift] = useState(0);
+  const [importOverwrite, setImportOverwrite] = useState(false);
+  function runImport() {
+    if (!importSource) return;
+    setNotice(null);
+    setError(null);
+    startTransition(async () => {
+      if (status !== "saved" && !(await flushSave())) return;
+      const res = await importFromPlan({ targetId: meta.id, sourceId: importSource, shift: importShift, overwrite: importOverwrite });
+      if (res.error || !res.data) {
+        setError(res.error ?? "Übernehmen fehlgeschlagen.");
+        return;
+      }
+      const data = res.data;
+      updatePlan((p) => ({ ...p, days: data.days }));
+      setNotice("Gerichte übernommen. Du kannst sie jetzt noch zwischen den Tagen verschieben.");
+    });
   }
 
   function publish(target: "asteel-flash" | "grenzebach") {
@@ -321,7 +376,13 @@ export function PlanEditor({
           {plan.days.map((day, d) => (
             <section key={d} className="rounded-2xl border border-sand-200 bg-white p-4">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-base font-bold text-ink">{DAY_LABELS[d]}</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-bold text-ink">{DAY_LABELS[d]}</h2>
+                  <div className="flex items-center gap-1" aria-label={`${DAY_LABELS[d]} verschieben`}>
+                    <MoveButton dir="up" disabled={d === 0} title={`Ganzen Tag mit ${DAY_LABELS[d - 1] ?? ""} tauschen`} onClick={() => moveDay(d, -1)} />
+                    <MoveButton dir="down" disabled={d === plan.days.length - 1} title={`Ganzen Tag mit ${DAY_LABELS[d + 1] ?? ""} tauschen`} onClick={() => moveDay(d, 1)} />
+                  </div>
+                </div>
                 <label className="flex cursor-pointer items-center gap-2 text-sm text-ink">
                   <input
                     type="checkbox"
@@ -350,6 +411,9 @@ export function PlanEditor({
                       menu={menu}
                       suggestions={suggestions}
                       onChange={(patch) => updateMenu(d, m, patch)}
+                      onMove={(dir) => moveMenu(d, m, dir)}
+                      canMoveUp={d > 0}
+                      canMoveDown={d < plan.days.length - 1}
                     />
                   ))}
                 </div>
@@ -430,15 +494,16 @@ export function PlanEditor({
             <div className="rounded-2xl border border-sand-200 bg-white p-4">
               <p className="mb-2 text-xs font-bold uppercase tracking-wider text-ink-soft">Herunterladen</p>
               <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={() => download("png")} disabled={busy} className={`${pillBtn} bg-brand-500 text-white shadow-warm hover:bg-brand-600`}>
-                  Als PNG
+                <button type="button" onClick={() => download("png")} disabled={busy || downloading !== null} className={`${pillBtn} bg-brand-500 text-white shadow-warm hover:bg-brand-600`}>
+                  {downloading === "png" ? "PNG wird erstellt …" : "Als PNG"}
                 </button>
-                <button type="button" onClick={() => download("jpg")} disabled={busy} className={`${pillBtn} bg-brand-500 text-white shadow-warm hover:bg-brand-600`}>
-                  Als JPG
+                <button type="button" onClick={() => download("jpg")} disabled={busy || downloading !== null} className={`${pillBtn} bg-brand-500 text-white shadow-warm hover:bg-brand-600`}>
+                  {downloading === "jpg" ? "JPG wird erstellt …" : "Als JPG"}
                 </button>
               </div>
               <p className="mt-2 text-xs text-ink-soft">
-                Nächste Datei: {planFileName({ canteen: effectiveCanteen, year, week }, exportCount + 1, "png")} · 3200 × 2262 px
+                Nächste Datei: {planFileName({ canteen: effectiveCanteen, year, week }, exportCount + 1, "png")} · 3200 × 2262 px.
+                Die Datei wird in Druckqualität gerendert, das dauert einige Sekunden.
               </p>
             </div>
 
@@ -453,6 +518,43 @@ export function PlanEditor({
                 </button>
               </div>
               <p className="mt-2 text-xs text-ink-soft">Ersetzt den dort aktuell gezeigten Wochenplan sofort.</p>
+            </div>
+
+            <div className="rounded-2xl border border-sand-200 bg-white p-4">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-ink-soft">Gerichte aus anderem Plan übernehmen</p>
+              {otherPlans.length === 0 ? (
+                <p className="text-xs text-ink-soft">Noch keine anderen Pläne vorhanden.</p>
+              ) : (
+                <div className="grid gap-2">
+                  <select value={importSource} onChange={(e) => setImportSource(e.target.value)} className={input}>
+                    {otherPlans.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="text-xs font-semibold text-ink-soft">Verschieben um</label>
+                    <select value={importShift} onChange={(e) => setImportShift(Number(e.target.value))} className={`${input} w-auto`}>
+                      {[-2, -1, 0, 1, 2].map((n) => (
+                        <option key={n} value={n}>
+                          {n === 0 ? "keinen Tag" : `${n > 0 ? "+" : ""}${n} ${Math.abs(n) === 1 ? "Tag" : "Tage"}`}
+                        </option>
+                      ))}
+                    </select>
+                    <label className="flex cursor-pointer items-center gap-1.5 text-xs text-ink">
+                      <input type="checkbox" checked={importOverwrite} onChange={(e) => setImportOverwrite(e.target.checked)} className="h-3.5 w-3.5 accent-brand-500" />
+                      belegte Felder ersetzen
+                    </label>
+                    <button type="button" onClick={runImport} disabled={busy} className={`${pillBtn} ml-auto border border-sand-300 text-ink hover:bg-sand-100`}>
+                      Übernehmen
+                    </button>
+                  </div>
+                  <p className="text-xs text-ink-soft">
+                    „+1 Tag“ heißt: Montag des Quellplans landet hier auf Dienstag. Ohne Haken werden nur leere Felder gefüllt.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="rounded-2xl border border-sand-200 bg-white p-4">
@@ -490,11 +592,17 @@ function MenuCard({
   menu,
   suggestions,
   onChange,
+  onMove,
+  canMoveUp,
+  canMoveDown,
 }: {
   index: number;
   menu: PlanMenu;
   suggestions: DishSuggestion[];
   onChange: (patch: Partial<PlanMenu>) => void;
+  onMove: (dir: -1 | 1) => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
 }) {
   const [focused, setFocused] = useState(false);
   const hasAdditive = ADDITIVES.some((a) => menu.codes.includes(a.code));
@@ -514,18 +622,26 @@ function MenuCard({
 
   return (
     <div className="rounded-xl border border-sand-200 bg-sand-50/60 p-3">
-      <p className="mb-2 text-xs font-bold uppercase tracking-wider text-ink-soft">Menü {index + 1}</p>
+      <div className="mb-2 flex items-center justify-between">
+        <p className="text-xs font-bold uppercase tracking-wider text-ink-soft">Menü {index + 1}</p>
+        <div className="flex items-center gap-1" aria-label="Gericht in anderen Tag verschieben">
+          <MoveButton dir="up" disabled={!canMoveUp} title="Mit dem Vortag tauschen" onClick={() => onMove(-1)} />
+          <MoveButton dir="down" disabled={!canMoveDown} title="Mit dem Folgetag tauschen" onClick={() => onMove(1)} />
+        </div>
+      </div>
 
       <div className="relative">
-        <input
+        <textarea
           value={menu.title}
           onChange={(e) => onChange({ title: e.target.value })}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           placeholder="Gericht, z. B. Köttbullar"
-          className={`${input} font-bold`}
+          rows={menu.title.includes("\n") ? 2 : 1}
+          className={`${input} resize-none font-bold`}
           autoComplete="off"
         />
+        <p className="mt-1 text-[11px] text-ink-soft">Enter = Zeilenumbruch im Gerichtnamen. Kennzeichnung und Symbol stehen hinter der letzten Zeile.</p>
         {matches.length > 0 && (
           <ul className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-sand-200 bg-white shadow-warm">
             {matches.map((s) => (
@@ -618,6 +734,23 @@ function MenuCard({
         <p className="mt-1 text-[11px] text-ink-soft">Jede Zeile wird eine Zeile auf dem Plan. „*7,9“ im Text wird klein hochgestellt.</p>
       </div>
     </div>
+  );
+}
+
+function MoveButton({ dir, disabled, title, onClick }: { dir: "up" | "down"; disabled: boolean; title: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-label={title}
+      disabled={disabled}
+      onClick={onClick}
+      className="grid h-6 w-6 place-items-center rounded-full border border-sand-300 bg-white text-ink-soft transition hover:bg-sand-100 disabled:cursor-not-allowed disabled:opacity-30"
+    >
+      <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+        <path d={dir === "up" ? "M3 10l5-5 5 5" : "M3 6l5 5 5-5"} strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </button>
   );
 }
 

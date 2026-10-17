@@ -217,3 +217,45 @@ export function splitCodes(line: string): TextPart[] {
 export function dishKey(title: string): string {
   return title.trim().toLowerCase().replace(/\s+/g, " ");
 }
+
+/* ---------------- Gerichte zwischen Tagen und Plänen ---------------- */
+
+/** Vertauscht zwei Tage komplett (Menüs und „geschlossen“). */
+export function swapDays(plan: PlanData, a: number, b: number): PlanData {
+  if (a === b || a < 0 || b < 0 || a >= plan.days.length || b >= plan.days.length) return plan;
+  const days = plan.days.slice();
+  [days[a], days[b]] = [days[b], days[a]];
+  return { ...plan, days };
+}
+
+/** Vertauscht ein einzelnes Menü-Feld mit dem gleichen Feld eines anderen Tages. */
+export function swapMenu(plan: PlanData, dayA: number, dayB: number, menu: number): PlanData {
+  if (dayA === dayB || dayA < 0 || dayB < 0 || dayA >= plan.days.length || dayB >= plan.days.length) return plan;
+  const days = plan.days.map((d) => ({ ...d, menus: d.menus.slice() }));
+  const tmp = days[dayA].menus[menu];
+  days[dayA].menus[menu] = days[dayB].menus[menu];
+  days[dayB].menus[menu] = tmp;
+  return { ...plan, days };
+}
+
+/**
+ * Übernimmt die Gerichte eines anderen Plans, optional um `shift` Tage verschoben
+ * (+1 = Montag des Quellplans landet auf Dienstag). Mit `overwrite` werden belegte
+ * Felder ersetzt, sonst nur leere gefüllt. Tage ohne Quelle bleiben unverändert.
+ */
+export function importDays(target: PlanData, source: PlanData, shift: number, overwrite: boolean): PlanData {
+  const days = target.days.map((d) => ({ ...d, menus: d.menus.map((m) => ({ ...m, codes: m.codes.slice() })) }));
+  for (let i = 0; i < source.days.length; i++) {
+    const j = i + shift;
+    if (j < 0 || j >= days.length) continue;
+    const src = source.days[i];
+    if (src.closed) continue;
+    for (let m = 0; m < days[j].menus.length; m++) {
+      const from = src.menus[m];
+      if (!from || !from.title.trim()) continue;
+      if (!overwrite && days[j].menus[m].title.trim()) continue;
+      days[j].menus[m] = { ...from, codes: from.codes.slice() };
+    }
+  }
+  return { ...target, days };
+}

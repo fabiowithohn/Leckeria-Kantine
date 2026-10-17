@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getAdminSession } from "@/lib/admin-auth";
-import { CANTEENS, emptyPlan, normalizePlan, toISODate, isoWeekMonday } from "@/lib/meal-plan";
-import { PlanEditor, type DishSuggestion, type PlanMeta } from "@/components/admin/plan-editor";
+import { CANTEENS, emptyPlan, normalizePlan, toISODate, isoWeekMonday, weekTitle } from "@/lib/meal-plan";
+import { PlanEditor, type DishSuggestion, type PlanMeta, type PlanOption } from "@/components/admin/plan-editor";
 import { PlanList } from "@/components/admin/plan-list";
 
 export const dynamic = "force-dynamic";
@@ -50,7 +50,11 @@ export default async function AdminPlanPage({
       description: d.description,
     }));
 
-    return <PlanEditor meta={meta} initial={data} suggestions={suggestions} canteens={canteens} />;
+    const otherPlans: PlanOption[] = plans
+      .filter((p) => p.id !== row.id)
+      .map((p) => ({ id: p.id, label: `${p.canteen} · ${weekTitle(p.year, p.week)}` }));
+
+    return <PlanEditor meta={meta} initial={data} suggestions={suggestions} canteens={canteens} otherPlans={otherPlans} />;
   }
 
   return (

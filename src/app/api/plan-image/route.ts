@@ -8,7 +8,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * POST: Live-Vorschau. Body = PlanData (JSON), Antwort = PNG in Basisgröße.
+ * POST: Live-Vorschau. Body = PlanData (JSON), Antwort = JPEG in Basisgröße
+ * (ca. 250 KB statt 1,7 MB als PNG – die Vorschau lädt dadurch deutlich schneller).
  * Nur für die Rolle „planner“.
  */
 export async function POST(req: Request) {
@@ -23,8 +24,9 @@ export async function POST(req: Request) {
   const kwRaw = (body as { kw?: unknown })?.kw;
   const kw = typeof kwRaw === "number" && kwRaw >= 1 && kwRaw <= 53 ? kwRaw : undefined;
   const png = await renderPlanPng(plan, 1, kw);
-  return new Response(new Uint8Array(png), {
-    headers: { "Content-Type": "image/png", "Cache-Control": "no-store" },
+  const jpeg = await sharp(png).jpeg({ quality: 84, mozjpeg: true }).toBuffer();
+  return new Response(new Uint8Array(jpeg), {
+    headers: { "Content-Type": "image/jpeg", "Cache-Control": "no-store" },
   });
 }
 
@@ -50,7 +52,11 @@ export async function GET(req: Request) {
 
   const plan = normalizePlan(row.data, emptyPlan(row.canteen, row.year, row.week));
   const png = await renderPlanPng(plan, 2, row.week);
-  const file = format === "jpg" ? await sharp(png).jpeg({ quality: 92, mozjpeg: true }).toBuffer() : png;
+  // Vercel erlaubt max. 4,5 MB pro Antwort. Das rohe PNG hat ~6 MB, nachkomprimiert ~1,2 MB.
+  const file =
+    format === "jpg"
+      ? await sharp(png).jpeg({ quality: 92, mozjpeg: true }).toBuffer()
+      : await sharp(png).png({ compressionLevel: 9, effort: 7 }).toBuffer();
   const name = planFileName(row, updated.exportCount, format);
 
   return new Response(new Uint8Array(file), {

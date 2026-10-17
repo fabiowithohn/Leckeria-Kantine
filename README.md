@@ -78,6 +78,13 @@ Wochenplan auf der Website veröffentlicht.
   JPG im selben Seitenverhältnis ersetzen.
 - Einmal eingetippte Gerichte werden mit Kennzeichnung und Beschreibung gemerkt und
   beim nächsten Mal vorgeschlagen (Tabelle `PlanDish`).
+- Gerichtnamen dürfen manuelle Zeilenumbrüche enthalten (Enter im Titelfeld);
+  Kennzeichnung und Symbol folgen der letzten Zeile.
+- Tage und einzelne Gerichte lassen sich per Pfeil zwischen den Wochentagen tauschen;
+  „Gerichte aus anderem Plan übernehmen“ kopiert einen Plan optional um ±1–2 Tage
+  verschoben in den aktuellen (nur leere Felder oder alles ersetzen).
+- Vorschau wird als JPEG geliefert, der PNG-Export nachkomprimiert: Vercel bricht
+  Antworten über 4,5 MB ab (das rohe 3200-px-PNG hätte ~6 MB).
 - Neue Tabellen `MealPlan` und `PlanDish`: nach dem Deploy
   `npx prisma migrate deploy` gegen die Produktions-Datenbank ausführen.
 
